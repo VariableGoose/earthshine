@@ -3,5 +3,5 @@
 #include <stdio.h>
 
 i32_t main(void) {
-	return 0;
+    return 0;
 }

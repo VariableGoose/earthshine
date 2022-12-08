@@ -2,39 +2,39 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-	* Version: 1.0
+    * Version: 1.0
     * Github: https://github.com/linusepk/earthshine
-	
-	All Rights Reserved
 
-	BSD 3-Clause License
-	
-	Copyright (c) 2022, Linus Erik Pontus Kåreblom
-	
-	Redistribution and use in source and binary forms, with or without
-	modification, are permitted provided that the following conditions are met:
-	
-	1. Redistributions of source code must retain the above copyright notice, this
-	   list of conditions and the following disclaimer.
-	
-	2. Redistributions in binary form must reproduce the above copyright notice,
-	   this list of conditions and the following disclaimer in the documentation
-	   and/or other materials provided with the distribution.
-	
-	3. Neither the name of the copyright holder nor the names of its
-	   contributors may be used to endorse or promote products derived from
-	   this software without specific prior written permission.
-	
-	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-	FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-	DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    All Rights Reserved
+
+    BSD 3-Clause License
+
+    Copyright (c) 2022, Linus Erik Pontus Kåreblom
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this
+       list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+
+    3. Neither the name of the copyright holder nor the names of its
+       contributors may be used to endorse or promote products derived from
+       this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+    CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+    OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ====================================================================================================*/
 
 #ifndef ES_H
@@ -121,12 +121,12 @@ typedef u32_t b32_t;
 
 // Header struct placed before a dynamic array
 typedef struct _es_da_header_t {
-	// Entry count
-	usize_t count;
-	// Max entry count
-	usize_t cap;
-	// Size of entry
-	usize_t size;
+    // Entry count
+    usize_t count;
+    // Max entry count
+    usize_t cap;
+    // Size of entry
+    usize_t size;
 } _es_da_header_t;
 
 #define _ES_DA_INIT_CAP 8
@@ -146,15 +146,15 @@ ES_API usize_t es_da_count(void *arr);
 #define es_da(T) T *
 
 #define es_da_insert(ARR, D, I) do { \
-	_es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
-	__typeof__(D) _es_da_temp_data = D; \
-	_es_da_insert_impl((void **) &(ARR), &_es_da_temp_data, (I)); \
+    _es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
+    __typeof__(D) _es_da_temp_data = D; \
+    _es_da_insert_impl((void **) &(ARR), &_es_da_temp_data, (I)); \
 } while(0)
 #define es_da_remove(ARR, I, OUT) _es_da_remove_impl((void **) &(ARR), I, (OUT))
 #define es_da_insert_fast(ARR, D, I) do { \
-	_es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
-	__typeof__(D) _es_da_temp_data = D; \
-	_es_da_insert_fast_impl((void **) &(ARR), &_es_da_temp_data, (I)); \
+    _es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
+    __typeof__(D) _es_da_temp_data = D; \
+    _es_da_insert_fast_impl((void **) &(ARR), &_es_da_temp_data, (I)); \
 } while(0)
 #define es_da_remove_fast(ARR, I, OUT) _es_da_remove_fast_impl((void **) &(ARR), (I), (OUT))
 #define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)));
