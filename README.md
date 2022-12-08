@@ -10,15 +10,14 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 ```
 
 # Features
-
-[x] Dynamic array
-[ ] Hash map
-[ ] Windowing
-[ ] Graphics
-[ ] File operations
-[ ] Math
-[ ] Logging
-[ ] Memory debugging
+- [x] Dynamic array
+- [ ] Hash map
+- [ ] Windowing
+- [ ] Graphics
+- [ ] File operations
+- [ ] Math
+- [ ] Logging
+- [ ] Memory debugging
 
 # Convention
 Everything is written in lowercase with underscores (some exceptions apply).
