@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.0
+    * Version: 1.1
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -160,5 +160,17 @@ ES_API usize_t es_da_count(void *arr);
 #define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)));
 #define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT);
 #define es_da_free(ARR) _es_da_free_impl((void **) &(ARR))
+
+/*=========================*/
+// Assert
+/*=========================*/
+
+ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t expr, const char *fmt, ...);
+
+#define es_assert(EXPR, FMT, ...) _es_assert_impl(__FILE__, __LINE__, #EXPR, (EXPR), FMT, ##__VA_ARGS__)
+
+/*=========================*/
+// Implementation
+/*=========================*/
 
 #endif // ES_H

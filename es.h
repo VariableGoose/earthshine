@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.0
+    * Version: 1.1
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -162,19 +162,29 @@ ES_API usize_t es_da_count(void *arr);
 #define es_da_free(ARR) _es_da_free_impl((void **) &(ARR))
 
 /*=========================*/
+// Assert
+/*=========================*/
+
+ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t expr, const char *fmt, ...);
+
+#define es_assert(EXPR, FMT, ...) _es_assert_impl(__FILE__, __LINE__, #EXPR, (EXPR), FMT, ##__VA_ARGS__)
+
+/*=========================*/
 // Implementation
 /*=========================*/
 
 #ifdef ES_IMPL
 #include <malloc.h>
 #include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
 /*=========================*/
 // Dynamic array
 /*=========================*/
 
 void _es_da_init_impl(void **arr, usize_t size) {
-    if (*arr != NULL) {
+    if (*arr != NULL || size == 0) {
         return;
     }
 
@@ -188,8 +198,16 @@ void _es_da_init_impl(void **arr, usize_t size) {
 }
 
 void _es_da_insert_impl(void **arr, const void *data, usize_t index) {
+    es_assert(arr != NULL, "Can't insert into a NULL array.", NULL);
+    es_assert(data != NULL, "Can't insert NULL data into array.", NULL);
+
     _es_da_resize(arr, true);
     _es_da_header_t *head = _es_da_head(*arr);
+
+    // Out of bounds correction
+    if (index > head->count) {
+        index = head->count;
+    }
 
     u8_t *ptr = *arr;
     void *src = ptr + (index) * head->size;
@@ -201,6 +219,8 @@ void _es_da_insert_impl(void **arr, const void *data, usize_t index) {
 }
 
 void _es_da_remove_impl(void **arr, usize_t index, void *output) {
+    es_assert(arr != NULL, "Can't remove from a NULL array.", NULL);
+
     _es_da_resize(arr, false);
     _es_da_header_t *head = _es_da_head(*arr);
 
@@ -217,6 +237,9 @@ void _es_da_remove_impl(void **arr, usize_t index, void *output) {
 }
 
 void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index) {
+    es_assert(arr != NULL, "Can't fast insert into a NULL array.", NULL);
+    es_assert(data != NULL, "Can't fast insert NULL data into array.", NULL);
+
     _es_da_resize(arr, true);
     _es_da_header_t *head = _es_da_head(*arr);
 
@@ -230,6 +253,8 @@ void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index) {
 }
 
 void _es_da_remove_fast_impl(void **arr, usize_t index, void *output) {
+    es_assert(arr != NULL, "Can't remove from a NULL array.", NULL);
+
     _es_da_resize(arr, false);
     _es_da_header_t *head = _es_da_head(*arr);
 
@@ -246,10 +271,14 @@ void _es_da_remove_fast_impl(void **arr, usize_t index, void *output) {
 }
 
 void _es_da_free_impl(void **arr) {
+    es_assert(arr != NULL, "Can't remove from a NULL array.", NULL);
+
     es_free(_es_da_head(*arr));
 }
 
 void _es_da_resize(void **arr, b8_t insert) {
+    es_assert(arr != NULL, "Can't resize a NULL array.", NULL);
+
     _es_da_header_t *head = _es_da_head(*arr);
     // Double the capacity when full and inserting
     if (insert && head->count + 1 == head->cap) {
@@ -280,6 +309,29 @@ usize_t es_da_count(void *arr) {
     }
     return _es_da_head(arr)->count;
 }
-#endif // ES_IMPL
 
+/*=========================*/
+// Assert
+/*=========================*/
+
+void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t expr, const char *fmt, ...) {
+    if (expr) {
+        return;
+    }
+
+    printf("%s:%u: Assertion (%s) failed", file, line, expr_str);
+    
+    if (fmt) {
+        printf(": '");
+        va_list ptr;
+        va_start(ptr, fmt);
+        vprintf(fmt, ptr);
+        va_end(ptr);
+        printf("'");
+    }
+
+    printf("\n");
+    abort();
+}
+#endif /*ES_IMPL*/
 #endif // ES_H
