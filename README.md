@@ -18,6 +18,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 - [ ] Math
 - [ ] Logging
 - [ ] Memory debugging
+- [ ] Assertions
 
 # Convention
 Everything is written in lowercase with underscores (some exceptions apply).
