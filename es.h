@@ -166,6 +166,8 @@ ES_API usize_t es_da_count(void *arr);
     _es_da_insert_arr_impl((void **) &(ARR), (D), (C), (I)); \
 } while (0)
 #define es_da_remove_arr(ARR, C, I, OUT) _es_da_remove_arr_impl((void **) &(ARR), (C), (I), (OUT))
+#define es_da_push_arr(ARR, D, C) es_da_insert_arr(ARR, D, C, es_da_count((ARR)))
+#define es_da_pop_arr(ARR, C, OUT) es_da_remove_arr(ARR, C, es_da_count((ARR)) - (C), OUT)
 #define es_da_free(ARR) _es_da_free_impl((void **) &(ARR))
 
 /*=========================*/
