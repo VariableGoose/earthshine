@@ -139,8 +139,10 @@ ES_API void _es_da_insert_impl(void **arr, const void *data, usize_t index);
 ES_API void _es_da_remove_impl(void **arr, usize_t index, void *output);
 ES_API void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index);
 ES_API void _es_da_remove_fast_impl(void **arr, usize_t index, void *output);
+ES_API void _es_da_insert_arr_impl(void **arr, const void *data, usize_t count, usize_t index);
+ES_API void _es_da_remove_arr_impl(void **arr, usize_t count, usize_t index, void *output);
 ES_API void _es_da_free_impl(void **arr);
-ES_API void _es_da_resize(void **arr, b8_t insert);
+ES_API void _es_da_resize(void **arr, isize_t count);
 ES_API usize_t es_da_count(void *arr);
 
 #define es_da(T) T *
@@ -159,6 +161,13 @@ ES_API usize_t es_da_count(void *arr);
 #define es_da_remove_fast(ARR, I, OUT) _es_da_remove_fast_impl((void **) &(ARR), (I), (OUT))
 #define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)));
 #define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT);
+#define es_da_insert_arr(ARR, D, C, I) do { \
+    _es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
+    _es_da_insert_arr_impl((void **) &(ARR), (D), (C), (I)); \
+} while (0)
+#define es_da_remove_arr(ARR, C, I, OUT) _es_da_remove_arr_impl((void **) &(ARR), (C), (I), (OUT))
+#define es_da_push_arr(ARR, D, C) es_da_insert_arr(ARR, D, C, es_da_count((ARR)))
+#define es_da_pop_arr(ARR, C, OUT) es_da_remove_arr(ARR, C, es_da_count((ARR)) - (C), OUT)
 #define es_da_free(ARR) _es_da_free_impl((void **) &(ARR))
 
 /*=========================*/
@@ -168,6 +177,12 @@ ES_API usize_t es_da_count(void *arr);
 ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t expr, const char *fmt, ...);
 
 #define es_assert(EXPR, FMT, ...) _es_assert_impl(__FILE__, __LINE__, #EXPR, (EXPR), FMT, ##__VA_ARGS__)
+
+/*=========================*/
+// Utils
+/*=========================*/
+
+#define es_arr_len(ARR) ((sizeof(ARR) / sizeof((ARR)[0])))
 
 /*=========================*/
 // Implementation

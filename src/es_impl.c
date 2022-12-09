@@ -27,7 +27,7 @@ void _es_da_insert_impl(void **arr, const void *data, usize_t index) {
     es_assert(arr != NULL, "Can't insert into a NULL array.", NULL);
     es_assert(data != NULL, "Can't insert NULL data into array.", NULL);
 
-    _es_da_resize(arr, true);
+    _es_da_resize(arr, 1);
     _es_da_header_t *head = _es_da_head(*arr);
 
     // Out of bounds correction
@@ -47,7 +47,6 @@ void _es_da_insert_impl(void **arr, const void *data, usize_t index) {
 void _es_da_remove_impl(void **arr, usize_t index, void *output) {
     es_assert(arr != NULL, "Can't remove from a NULL array.", NULL);
 
-    _es_da_resize(arr, false);
     _es_da_header_t *head = _es_da_head(*arr);
 
     u8_t *ptr = *arr;
@@ -59,6 +58,8 @@ void _es_da_remove_impl(void **arr, usize_t index, void *output) {
     }
 
     memcpy(dest, src, (head->count - index - 1) * head->size);
+
+    _es_da_resize(arr, -1);
     head->count--;
 }
 
@@ -66,7 +67,7 @@ void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index) {
     es_assert(arr != NULL, "Can't fast insert into a NULL array.", NULL);
     es_assert(data != NULL, "Can't fast insert NULL data into array.", NULL);
 
-    _es_da_resize(arr, true);
+    _es_da_resize(arr, 1);
     _es_da_header_t *head = _es_da_head(*arr);
 
     u8_t *ptr = *arr;
@@ -81,7 +82,6 @@ void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index) {
 void _es_da_remove_fast_impl(void **arr, usize_t index, void *output) {
     es_assert(arr != NULL, "Can't remove from a NULL array.", NULL);
 
-    _es_da_resize(arr, false);
     _es_da_header_t *head = _es_da_head(*arr);
 
     u8_t *ptr = *arr;
@@ -93,26 +93,69 @@ void _es_da_remove_fast_impl(void **arr, usize_t index, void *output) {
     }
 
     memcpy(dest, src, head->size);
+
+    _es_da_resize(arr, -1);
     head->count--;
 }
 
-void _es_da_free_impl(void **arr) {
-    es_assert(arr != NULL, "Can't remove from a NULL array.", NULL);
+void _es_da_insert_arr_impl(void **arr, const void *data, usize_t count, usize_t index) {
+    es_assert(arr != NULL, "Can't insert into a NULL array.", NULL);
+    es_assert(data != NULL, "Can't insert NULL data.", NULL);
 
+    _es_da_resize(arr, count);
+    _es_da_header_t *head = _es_da_head(*arr);
+    u8_t *ptr = *arr;
+    void *src = ptr + index * head->size;
+    void *dest = ptr + (index + count) * head->size;
+
+    memcpy(dest, src, (head->count - index) * head->size);
+    memcpy(src, data, head->size * count);
+    head->count += count;
+}
+
+void _es_da_remove_arr_impl(void **arr, usize_t count, usize_t index, void *output) {
+    es_assert(arr != NULL, "Can't insert into a NULL array.", NULL);
+
+    _es_da_header_t *head = _es_da_head(*arr);
+
+    u8_t *ptr = *arr;
+    void *src = ptr + (index + count) * head->size;
+    void *dest = ptr + index * head->size;
+
+    if (output != NULL) {
+        memcpy(output, ptr + index * head->size, head->size * count);
+    }
+
+    memcpy(dest, src, (head->count - index - count) * head->size);
+    _es_da_resize(arr, -count);
+
+    head->count -= count;
+}
+
+void _es_da_free_impl(void **arr) {
+    es_assert(arr != NULL, "Can't free a NULL pointer.", NULL);
+
+    if (*arr == NULL) {
+        return;
+    }
     es_free(_es_da_head(*arr));
 }
 
-void _es_da_resize(void **arr, b8_t insert) {
+void _es_da_resize(void **arr, isize_t count) {
     es_assert(arr != NULL, "Can't resize a NULL array.", NULL);
 
     _es_da_header_t *head = _es_da_head(*arr);
     // Double the capacity when full and inserting
-    if (insert && head->count + 1 == head->cap) {
-        head->cap <<= 1;
+    if (count > 0 && head->count + count >= head->cap) {
+        while (head->count + count >= head->cap) {
+            head->cap <<= 1;
+        }
     }
     // Half capacity when half empty and removing
-    else if (!insert && head->count - 1 == head->cap >> 1) {
-        head->cap >>= 1;
+    else if (count < 0 && head->count + count <= head->cap >> 1) {
+        while (head->count + count <= head->cap >> 1) {
+            head->cap >>= 1;
+        }
     }
     // If a resize isn't needed don't do anything
     else {
