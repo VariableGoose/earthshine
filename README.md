@@ -39,7 +39,7 @@ es_type_t foo = {0};
 Functions are prefixed with es as a namespace.  
 Functions are also prefixed with it's operational type such as `es_type_operation`.
 
-An internal function will be prefixed with an underscore.
+An internal function will be prefixed with an underscore. If the function is a lower level macro then it's suffixed with a `_impl`.
 
 Example:
 ```c
