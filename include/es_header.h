@@ -87,9 +87,11 @@ typedef double f64_t;
 // Bools
 typedef u8_t  b8_t;
 typedef u32_t b32_t;
+
 #ifndef true
 #define true 1
 #endif // true
+
 #ifndef false
 #define false 0
 #endif // false
@@ -105,12 +107,15 @@ typedef u32_t b32_t;
 #ifndef es_malloc
 #define es_malloc malloc
 #endif // es_malloc
+
 #ifndef es_calloc
 #define es_calloc calloc
 #endif // es_calloc
+
 #ifndef es_realloc
 #define es_realloc realloc
 #endif // es_realloc
+
 #ifndef es_free
 #define es_free free
 #endif // es_free
@@ -134,41 +139,51 @@ typedef struct _es_da_header_t {
 #define _es_da_head(P) ((_es_da_header_t *) ((u8_t *) (P) - sizeof(_es_da_header_t)))
 #define _es_da_ptr(H) ((void *) ((u8_t *) (H) + sizeof(_es_da_header_t)))
 
-ES_API void _es_da_init_impl(void **arr, usize_t size);
+ES_API void _es_da_init(void **arr, usize_t size);
+ES_API void _es_da_free_impl(void **arr);
+
 ES_API void _es_da_insert_impl(void **arr, const void *data, usize_t index);
 ES_API void _es_da_remove_impl(void **arr, usize_t index, void *output);
+
 ES_API void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index);
 ES_API void _es_da_remove_fast_impl(void **arr, usize_t index, void *output);
+
 ES_API void _es_da_insert_arr_impl(void **arr, const void *data, usize_t count, usize_t index);
 ES_API void _es_da_remove_arr_impl(void **arr, usize_t count, usize_t index, void *output);
-ES_API void _es_da_free_impl(void **arr);
+
 ES_API void _es_da_resize(void **arr, isize_t count);
+
 ES_API usize_t es_da_count(void *arr);
 
 #define es_da(T) T *
 
+#define es_da_free(ARR) _es_da_free_impl((void **) &(ARR))
+
 #define es_da_insert(ARR, D, I) do { \
-    _es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
+    _es_da_init((void **) &(ARR), sizeof(*(ARR))); \
     __typeof__(D) _es_da_temp_data = D; \
     _es_da_insert_impl((void **) &(ARR), &_es_da_temp_data, (I)); \
 } while(0)
 #define es_da_remove(ARR, I, OUT) _es_da_remove_impl((void **) &(ARR), I, (OUT))
+
 #define es_da_insert_fast(ARR, D, I) do { \
-    _es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
+    _es_da_init((void **) &(ARR), sizeof(*(ARR))); \
     __typeof__(D) _es_da_temp_data = D; \
     _es_da_insert_fast_impl((void **) &(ARR), &_es_da_temp_data, (I)); \
 } while(0)
 #define es_da_remove_fast(ARR, I, OUT) _es_da_remove_fast_impl((void **) &(ARR), (I), (OUT))
+
 #define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)));
 #define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT);
+
 #define es_da_insert_arr(ARR, D, C, I) do { \
-    _es_da_init_impl((void **) &(ARR), sizeof(*(ARR))); \
+    _es_da_init((void **) &(ARR), sizeof(*(ARR))); \
     _es_da_insert_arr_impl((void **) &(ARR), (D), (C), (I)); \
 } while (0)
 #define es_da_remove_arr(ARR, C, I, OUT) _es_da_remove_arr_impl((void **) &(ARR), (C), (I), (OUT))
+
 #define es_da_push_arr(ARR, D, C) es_da_insert_arr(ARR, D, C, es_da_count((ARR)))
 #define es_da_pop_arr(ARR, C, OUT) es_da_remove_arr(ARR, C, es_da_count((ARR)) - (C), OUT)
-#define es_da_free(ARR) _es_da_free_impl((void **) &(ARR))
 
 /*=========================*/
 // Assert
@@ -182,7 +197,145 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 // Utils
 /*=========================*/
 
+// Get length of an array
 #define es_arr_len(ARR) ((sizeof(ARR) / sizeof((ARR)[0])))
+
+// Get stride of a memebr of a struct
+#define es_offset(S, M) ((usize_t) &(((S *) 0)->M))
+
+/*=========================*/
+// Hash table
+/*=========================*/
+
+// Hashing
+#ifndef ES_SIPHASH_C_ROUNDS
+#define ES_SIPHASH_C_ROUNDS 1
+#endif // ES_SIPHASH_C_ROUNDS
+#ifndef ES_SIPHASH_D_ROUNDS
+#define ES_SIPHASH_D_ROUNDS 1
+#endif // ES_SIPHASH_D_ROUNDS
+
+ES_API usize_t es_hash_str(const char *str);
+ES_API usize_t es_siphash(const void *data, usize_t len, usize_t seed);
+
+// Data structure
+#define ES_HASH_TABLE_MAX_CAP 0.75f
+#define ES_HASH_TABLE_SEED 0x2664424Cul
+
+typedef enum es_hash_table_entry_state_t {
+    ES_HASH_TABLE_ENTRY_DEAD  = 0,
+    ES_HASH_TABLE_ENTRY_ALIVE = 1,
+} es_hash_table_entry_state_t;
+
+#define _es_hash_table_entry(K, V) struct { \
+    K key; \
+    V value; \
+    es_hash_table_entry_state_t state; \
+    usize_t hash; \
+}
+
+#define es_hash_table(K, V) struct { \
+    _es_hash_table_entry(K, V) *entries; \
+    usize_t entry_size; \
+    usize_t key_size; \
+    usize_t alive_entries; \
+    K temp_key; \
+} *
+
+#define _es_hash_table_init(HT) do { \
+    if ((HT) == NULL) { \
+        usize_t entry_size = sizeof(*(HT)->entries); \
+        usize_t ht_size = sizeof(*(HT)); \
+        usize_t key_size = sizeof((HT)->entries->key); \
+        (HT) = es_malloc(ht_size); \
+        memset((HT), 0, ht_size); \
+        (HT)->entries = NULL; \
+        es_da_push_arr((HT)->entries, NULL, 8); \
+        (HT)->entry_size = entry_size; \
+        (HT)->key_size = key_size; \
+    } \
+} while (0)
+
+#define _es_hash_table_insert_entry(ENTRIES, HASH, CAP, K, V, NEW) do { \
+    usize_t index = (HASH) % (CAP); \
+    usize_t count = 0; \
+    usize_t search_hash = (ENTRIES)[index].hash; \
+    for (;;) { \
+        if (count >= CAP || search_hash == (HASH) || (ENTRIES)[index].state == ES_HASH_TABLE_ENTRY_DEAD) { \
+            break; \
+        } \
+        index = (index + 1) % (CAP); \
+        search_hash = (ENTRIES)[index].hash; \
+        count++; \
+    } \
+    if ((ENTRIES)[index].state == ES_HASH_TABLE_ENTRY_DEAD) { \
+        (NEW) = true; \
+    } \
+    (ENTRIES)[index].key   = (K); \
+    (ENTRIES)[index].value = (V); \
+    (ENTRIES)[index].state = ES_HASH_TABLE_ENTRY_ALIVE; \
+    (ENTRIES)[index].hash  = (HASH); \
+} while(0)
+
+#define _es_hash_table_resize(HT) do { \
+    _es_hash_table_init(HT); \
+    es_da(__typeof__(*((HT)->entries))) new_entries = NULL; \
+    usize_t cap = es_da_count((HT)->entries); \
+    if ((HT)->alive_entries >= cap * ES_HASH_TABLE_MAX_CAP) { \
+        /* Double array capacity. */ \
+        es_da_push_arr(new_entries, NULL, cap * 2); \
+    } \
+    if (new_entries != NULL) { \
+        for (usize_t i = 0; i < cap; i++) { \
+            __typeof__(*((HT)->entries)) curr = (HT)->entries[i]; \
+            if (curr.state == ES_HASH_TABLE_ENTRY_DEAD) { \
+                continue; \
+            } \
+            \
+            b8_t new = false; \
+            _es_hash_table_insert_entry(new_entries, curr.hash, es_da_count(new_entries), curr.key, curr.value, new); \
+            (void) new; \
+        } \
+        es_da_free((HT)->entries); \
+        (HT)->entries = new_entries; \
+    } \
+} while (0)
+
+#define es_hash_table_insert(HT, K, V) do { \
+    /* _es_hash_table_init(HT); \ */ \
+    _es_hash_table_resize(HT); \
+    \
+    __typeof__((ht)->entries->key) es_ht_temp_key = (K); \
+    usize_t hash = es_siphash(&es_ht_temp_key, sizeof(es_ht_temp_key), ES_HASH_TABLE_SEED); \
+    usize_t cap = es_da_count((HT)->entries); \
+    b8_t new = false; \
+    _es_hash_table_insert_entry((HT)->entries, hash, cap, K, V, new); \
+    if (new) { \
+        (HT)->alive_entries++; \
+    } \
+} while (0)
+
+#define es_hash_table_get(HT, K) ( \
+    (HT)->temp_key = (K), (HT)->entries[ \
+        _es_hash_table_get_index( \
+            es_siphash(&(HT)->temp_key, sizeof((HT)->temp_key), ES_HASH_TABLE_SEED), \
+            (void **) &(HT)->entries, \
+            es_da_count((HT)->entries), \
+            sizeof(*(HT)->entries), \
+            es_offset(__typeof__(*(HT)->entries), hash), \
+            es_offset(__typeof__(*(HT)->entries), state) \
+        ) \
+    ].value \
+)
+
+#define es_hash_table_free(HT) do { \
+    if ((HT) != NULL) { \
+        es_da_free((HT)->entries); \
+        es_free(HT); \
+    } \
+} while (0) \
+
+ES_API usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t entry_count, usize_t entry_size, usize_t hash_offset, usize_t state_offset);
 
 /*=========================*/
 // Implementation

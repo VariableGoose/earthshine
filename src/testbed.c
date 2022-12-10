@@ -1,26 +1,26 @@
 #include "es_header.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <malloc.h>
+
+typedef struct test_t {
+    i32_t a;
+    f64_t b;
+    b8_t c;
+} test_t;
 
 i32_t main(void) {
-    es_da(i32_t) da = NULL;
+    es_hash_table(i32_t, i32_t) ht = NULL;
 
-    i32_t arr[5] = {0, 1, 2, 3, 4};
-    /* es_da_insert_arr(da, arr, es_arr_len(arr), 0); */
-    es_da_push_arr(da, arr, es_arr_len(arr));
-    i32_t out[2] = {0};
-    /* es_da_remove_arr(da, 2, 0, out); */
-    /* es_da_pop_arr(da, 2, NULL); */
-
-    for (usize_t i = 0; i < es_da_count(da); i++) {
-        printf("%d\n", da[i]);
+    for (usize_t i = 0; i < 255; i++) {
+        es_hash_table_insert(ht, i, 255 - i);
     }
 
-    for (u32_t i = 0; i < es_arr_len(out); i++) {
-        printf("out[%u] = %d\n", i, out[i]);
-    }
+    i32_t val = es_hash_table_get(ht, 254);
+    printf("%d\n", val);
 
-    es_da_free(da);
+    es_hash_table_free(ht);
 
     return 0;
 }
