@@ -210,6 +210,7 @@ void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t ex
 // Hash table
 /*=========================*/
 
+// I just stole this.
 usize_t es_hash_str(const char *str) {
     es_assert(sizeof(usize_t) == 8 || sizeof(usize_t) == 4, "Unsupported architecture.", NULL);
 
@@ -235,6 +236,7 @@ usize_t es_hash_str(const char *str) {
     return (hash1 >> 0) * 4096 + (hash2 >> 0);
 }
 
+// This is also stolen. I'm not smart enough to understand this.
 usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
     const u8_t *d = p;
     usize_t v0, v1, v2, v3, data;
@@ -244,7 +246,7 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
     v2 = ((((usize_t) 0x6c796765 << 16) << 16) + 0x6e657261) ^  seed;
     v3 = ((((usize_t) 0x74656462 << 16) << 16) + 0x79746573) ^ ~seed;
 
-    // Rotate left
+    // Rotate left.
     #define es_siprotl(val, n) (((val) << (n) | ((val) >> (sizeof(usize_t) * 8 - (n)))))
     #define es_sipround() do {\
         v0 += v1; v1 = es_siprotl(v1, 13); v1 ^= v0; v0 = es_siprotl(v0, sizeof(usize_t) * 4); \
@@ -290,20 +292,24 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
     #undef es_sipround
 }
 
+// Search for wanted entry, if not found, find the first dead entry and return that.
 usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t entry_count, usize_t entry_size, usize_t hash_offset, usize_t state_offset) {
     u8_t *ptr = *entries;
     usize_t index = wanted_hash % entry_count;
     usize_t entry_hash = *(usize_t *) (ptr + hash_offset);
+    // Find wanted entry.
     for (usize_t count = 0; count < entry_count; count++) {
         u8_t *entry_ptr = ptr + index * entry_size;
         entry_hash = *(usize_t *) (entry_ptr + hash_offset);
         _es_hash_table_entry_state_t state = *(_es_hash_table_entry_state_t *) (entry_ptr + state_offset);
+        // Return if found.
         if (entry_hash == wanted_hash && state == _ES_HASH_TABLE_ENTRY_ALIVE) {
             return index;
         }
         index = (index + 1) % entry_count;
     }
 
+    // Find first dead entry.
     usize_t dead_index = 0;
     for (usize_t count = 0; count < entry_count; count++) {
         u8_t *entry_ptr = ptr + count * entry_size;
@@ -317,6 +323,7 @@ usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t en
     return dead_index;
 }
 
+// Hash value differently dependant on what key type the hash table uses.
 usize_t _es_hash_table_hash_key(b8_t is_string, void **ptr, usize_t len) {
     if (is_string) {
         return es_hash_str((const char *) *ptr);
