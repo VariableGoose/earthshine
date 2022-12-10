@@ -246,20 +246,31 @@ typedef enum es_hash_table_entry_state_t {
     usize_t key_size; \
     usize_t alive_entries; \
     K temp_key; \
+    V temp_value; \
+    b8_t string_key; \
+    _es_hash_table_entry(K, V) *temp_entry; \
 } *
 
 #define _es_hash_table_init(HT) do { \
-    if ((HT) == NULL) { \
-        usize_t entry_size = sizeof(*(HT)->entries); \
-        usize_t ht_size = sizeof(*(HT)); \
-        usize_t key_size = sizeof((HT)->entries->key); \
-        (HT) = es_malloc(ht_size); \
-        memset((HT), 0, ht_size); \
-        (HT)->entries = NULL; \
-        es_da_push_arr((HT)->entries, NULL, 8); \
-        (HT)->entry_size = entry_size; \
-        (HT)->key_size = key_size; \
+    if ((HT) != NULL) { \
+        break; \
     } \
+    usize_t entry_size = sizeof(*(HT)->entries); \
+    usize_t ht_size = sizeof(*(HT)); \
+    usize_t key_size = sizeof((HT)->entries->key); \
+    (HT) = es_malloc(ht_size); \
+    memset((HT), 0, ht_size); \
+    (HT)->entries = NULL; \
+    es_da_push_arr((HT)->entries, NULL, 8); \
+    (HT)->entry_size = entry_size; \
+    (HT)->key_size = key_size; \
+    (HT)->string_key = false; \
+    (HT)->temp_entry = NULL; \
+} while (0)
+
+#define es_hash_table_string_key(HT) do { \
+    _es_hash_table_init(HT); \
+    (HT)->string_key = true; \
 } while (0)
 
 #define _es_hash_table_insert_entry(ENTRIES, HASH, CAP, K, V, NEW) do { \
@@ -291,28 +302,28 @@ typedef enum es_hash_table_entry_state_t {
         /* Double array capacity. */ \
         es_da_push_arr(new_entries, NULL, cap * 2); \
     } \
-    if (new_entries != NULL) { \
-        for (usize_t i = 0; i < cap; i++) { \
-            __typeof__(*((HT)->entries)) curr = (HT)->entries[i]; \
-            if (curr.state == ES_HASH_TABLE_ENTRY_DEAD) { \
-                continue; \
-            } \
-            \
-            b8_t new = false; \
-            _es_hash_table_insert_entry(new_entries, curr.hash, es_da_count(new_entries), curr.key, curr.value, new); \
-            (void) new; \
-        } \
-        es_da_free((HT)->entries); \
-        (HT)->entries = new_entries; \
+    if (new_entries == NULL) { \
+        break; \
     } \
+    for (usize_t i = 0; i < cap; i++) { \
+        __typeof__(*((HT)->entries)) curr = (HT)->entries[i]; \
+        if (curr.state == ES_HASH_TABLE_ENTRY_DEAD) { \
+            continue; \
+        } \
+        \
+        b8_t new = false; \
+        _es_hash_table_insert_entry(new_entries, curr.hash, es_da_count(new_entries), curr.key, curr.value, new); \
+        (void) new; \
+    } \
+    es_da_free((HT)->entries); \
+    (HT)->entries = new_entries; \
 } while (0)
 
 #define es_hash_table_insert(HT, K, V) do { \
-    /* _es_hash_table_init(HT); \ */ \
     _es_hash_table_resize(HT); \
     \
-    __typeof__((ht)->entries->key) es_ht_temp_key = (K); \
-    usize_t hash = es_siphash(&es_ht_temp_key, sizeof(es_ht_temp_key), ES_HASH_TABLE_SEED); \
+    __typeof__((HT)->entries->key) es_ht_temp_key = (K); \
+    usize_t hash = _es_hash_table_hash_key((HT)->string_key, (void **) &es_ht_temp_key, sizeof((HT)->temp_key)); \
     usize_t cap = es_da_count((HT)->entries); \
     b8_t new = false; \
     _es_hash_table_insert_entry((HT)->entries, hash, cap, K, V, new); \
@@ -322,9 +333,10 @@ typedef enum es_hash_table_entry_state_t {
 } while (0)
 
 #define es_hash_table_get(HT, K) ( \
-    (HT)->temp_key = (K), (HT)->entries[ \
+    (HT)->temp_key = (K), \
+    (HT)->entries[ \
         _es_hash_table_get_index( \
-            es_siphash(&(HT)->temp_key, sizeof((HT)->temp_key), ES_HASH_TABLE_SEED), \
+        _es_hash_table_hash_key((HT)->string_key, (void **) &(HT)->temp_key, sizeof((HT)->temp_key)), \
             (void **) &(HT)->entries, \
             es_da_count((HT)->entries), \
             sizeof(*(HT)->entries), \
@@ -334,6 +346,31 @@ typedef enum es_hash_table_entry_state_t {
     ].value \
 )
 
+#define es_hash_table_remove(HT, K) do { \
+    if ((HT) == NULL) { \
+        break; \
+    } \
+    (HT)->temp_key = (K); \
+    __typeof__((HT)->entries) es_ht_temp_entry = &(HT)->entries[_es_hash_table_get_index( \
+        _es_hash_table_hash_key((HT)->string_key, (void **) &(HT)->temp_key, sizeof((HT)->temp_key)), \
+        (void **) &(HT)->entries, \
+        es_da_count((HT)->entries), \
+        sizeof(*(HT)->entries), \
+        es_offset(__typeof__(*(HT)->entries), hash), \
+        es_offset(__typeof__(*(HT)->entries), state) \
+    )]; \
+    memset(es_ht_temp_entry, 0, sizeof(*(HT)->entries)); \
+    (HT)->alive_entries--; \
+} while (0)
+
+#define es_hash_table_clear(HT) do { \
+    __typeof__((HT)->entries) new_entries = NULL; \
+    es_da_push_arr(new_entries, NULL, 8); \
+    es_da_free((HT)->entries); \
+    (HT)->entries = new_entries; \
+    (HT)->alive_entries = 0; \
+} while (0)
+
 #define es_hash_table_free(HT) do { \
     if ((HT) != NULL) { \
         es_da_free((HT)->entries); \
@@ -341,7 +378,10 @@ typedef enum es_hash_table_entry_state_t {
     } \
 } while (0) \
 
+#define es_hash_table_count(HT) (HT)->alive_entries
+
 ES_API usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t entry_count, usize_t entry_size, usize_t hash_offset, usize_t state_offset);
+ES_API usize_t _es_hash_table_hash_key(b8_t is_string, void **ptr, usize_t len);
 
 /*=========================*/
 // Implementation

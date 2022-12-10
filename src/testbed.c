@@ -2,23 +2,24 @@
 
 #include <stdio.h>
 
-typedef struct test_t {
-    i32_t a;
-    f64_t b;
-    b8_t c;
-} test_t;
-
 i32_t main(void) {
-    es_hash_table(i32_t, i32_t) ht = NULL;
+    // Setup
+    es_hash_table(char, i32_t) ht = NULL;
+    /* es_hash_table_string_key(ht); */
 
-    for (usize_t i = 0; i < 255; i++) {
-        es_hash_table_insert(ht, i, 255 - i);
+
+    
+    for (u8_t i = 0; i < 26; i++) {
+        char key = 'a' + i;
+        es_hash_table_insert(ht, key, i);
     }
 
-    i32_t val = es_hash_table_get(ht, 254);
-    printf("%d\n", val);
+    for (usize_t i = 0; i < es_da_count(ht->entries); i++) {
+        printf("%c: %d\n", ht->entries[i].key, ht->entries[i].value);
+    }
 
+
+    // Cleanup
     es_hash_table_free(ht);
-
     return 0;
 }

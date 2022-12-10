@@ -316,3 +316,10 @@ usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t en
 
     return dead_index;
 }
+
+usize_t _es_hash_table_hash_key(b8_t is_string, void **ptr, usize_t len) {
+    if (is_string) {
+        return es_hash_str((const char *) *ptr);
+    }
+    return es_siphash((void *) ptr, len, ES_HASH_TABLE_SEED);
+}
