@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.1
+    * Version: 1.2
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -39,6 +39,8 @@
 
 #ifndef ES_H
 #define ES_H
+
+#include <string.h>
 
 /*=========================*/
 // Context cracking
@@ -106,18 +108,22 @@ typedef u32_t b32_t;
 
 #ifndef es_malloc
 #define es_malloc malloc
+#include <malloc.h>
 #endif // es_malloc
 
 #ifndef es_calloc
 #define es_calloc calloc
+#include <malloc.h>
 #endif // es_calloc
 
 #ifndef es_realloc
 #define es_realloc realloc
+#include <malloc.h>
 #endif // es_realloc
 
 #ifndef es_free
 #define es_free free
+#include <malloc.h>
 #endif // es_free
 
 /*=========================*/

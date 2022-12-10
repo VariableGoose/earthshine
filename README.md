@@ -11,7 +11,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 
 # Features
 - [x] Dynamic array
-- [ ] Hash table
+- [x] Hash table
 - [ ] Windowing
 - [ ] Graphics
 - [ ] File operations

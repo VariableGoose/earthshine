@@ -1,8 +1,6 @@
 #include "es_header.h"
 
 #include <stdio.h>
-#include <string.h>
-#include <malloc.h>
 
 typedef struct test_t {
     i32_t a;
