@@ -297,8 +297,8 @@ usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t en
     for (usize_t count = 0; count < entry_count; count++) {
         u8_t *entry_ptr = ptr + index * entry_size;
         entry_hash = *(usize_t *) (entry_ptr + hash_offset);
-        es_hash_table_entry_state_t state = *(es_hash_table_entry_state_t *) (entry_ptr + state_offset);
-        if (entry_hash == wanted_hash && state == ES_HASH_TABLE_ENTRY_ALIVE) {
+        _es_hash_table_entry_state_t state = *(_es_hash_table_entry_state_t *) (entry_ptr + state_offset);
+        if (entry_hash == wanted_hash && state == _ES_HASH_TABLE_ENTRY_ALIVE) {
             return index;
         }
         index = (index + 1) % entry_count;
@@ -307,8 +307,8 @@ usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t en
     usize_t dead_index = 0;
     for (usize_t count = 0; count < entry_count; count++) {
         u8_t *entry_ptr = ptr + count * entry_size;
-        es_hash_table_entry_state_t state = *(es_hash_table_entry_state_t *) (entry_ptr + state_offset);
-        if (state == ES_HASH_TABLE_ENTRY_DEAD) {
+        _es_hash_table_entry_state_t state = *(_es_hash_table_entry_state_t *) (entry_ptr + state_offset);
+        if (state == _ES_HASH_TABLE_ENTRY_DEAD) {
             dead_index = count;
             break;
         }
