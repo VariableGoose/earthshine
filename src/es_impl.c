@@ -351,3 +351,87 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
         state = *((_es_hash_table_entry_state_t *) ((u8_t *) entries + *iter * entry_size + state_stride));
     }
 }
+
+/*=========================*/
+// Linux
+/*=========================*/
+
+#ifdef ES_OS_LINUX
+
+/*=========================*/
+// Threading
+/*=========================*/
+
+es_thread_t es_thread(es_thread_func_t function, void *arg) {
+    es_thread_t thread = 0;
+    pthread_create(&thread, NULL, function, arg);
+    return thread;
+}
+
+es_thread_t es_thread_get_self(void) {
+    return (es_thread_t) { pthread_self() };
+}
+
+void es_thread_wait(es_thread_t thread, void **output) {
+    pthread_join(thread, output);
+}
+
+es_mutex_t es_mutex_init(void) {
+    es_mutex_t mutex = {0};
+    pthread_mutex_init(&mutex.handle, NULL);
+    return mutex;
+}
+void es_mutex_free(es_mutex_t *mutex)   { pthread_mutex_destroy(&mutex->handle); }
+void es_mutex_lock(es_mutex_t *mutex)   { pthread_mutex_lock(&mutex->handle); }
+void es_mutex_unlock(es_mutex_t *mutex) { pthread_mutex_unlock(&mutex->handle); }
+
+#endif // ES_OS_LINUX
+
+/*=========================*/
+// Windows
+/*=========================*/
+
+#ifdef ES_OS_WIN32
+
+/*=========================*/
+// Threading
+/*=========================*/
+
+es_thread_t es_thread(es_thread_func_t function, void *arg) {
+    es_thread_t thread = 0;
+    HANDLE handle = CreateThread(NULL, 0, function, arg, 0, &thread);
+    CloseHandle(handle);
+    return thread;
+}
+
+es_thread_t es_thread_get_self(void) {
+    GetCurrentThreadId();
+}
+
+void es_thread_wait(es_thread_t thread, void **output) {
+    HADNLE handle = OpenThread(SYNCHRONIZE, false, thread);
+    if (handle == NULL) {
+        return;
+    }
+    WaitForSingleObject(handle, INFINITE);
+}
+
+es_mutex_t es_mutex_init(void) {
+    es_mutex_t mutex = {0};
+    mutex.handle = CreateMutex(NULL, false, NULL);
+    return mutex;
+}
+
+void es_mutex_free(es_mutex_t *mutex) {
+    CloseHandle(mutex.handle);
+}
+
+void es_mutex_lock(es_mutex_t *mutex) {
+    WaitForSingleObject(mutex->handle, INFINITE);
+}
+
+void es_mutex_unlock(es_mutex_t *mutex) {
+    ReleaseMutex(mutex->handle);
+}
+
+#endif // ES_OS_WIN32
