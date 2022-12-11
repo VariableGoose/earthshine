@@ -472,6 +472,11 @@ ES_API void es_mutex_unlock(es_mutex_t *mutex);
 /*=========================*/
 
 #ifdef ES_OS_LINUX
+
+/*=========================*/
+// Threading
+/*=========================*/
+
 #include <pthread.h>
 
 struct es_mutex_t {
@@ -484,6 +489,11 @@ struct es_mutex_t {
 /*=========================*/
 
 #ifdef ES_OS_WIN32
+
+/*=========================*/
+// Threading
+/*=========================*/
+
 #include <windows.h>
 
 struct es_mutex_t {
