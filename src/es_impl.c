@@ -330,3 +330,24 @@ usize_t _es_hash_table_hash_key(b8_t is_string, void **ptr, usize_t len) {
     }
     return es_siphash((void *) ptr, len, ES_HASH_TABLE_SEED);
 }
+
+usize_t _es_hash_table_iter_new_impl(void *entries, usize_t state_stride, usize_t entry_size, usize_t cap) {
+    for (usize_t i = 0; i < cap; i++) {
+        _es_hash_table_entry_state_t state = *(_es_hash_table_entry_state_t *) ((u8_t *) entries + i * entry_size + state_stride);
+        if (state == _ES_HASH_TABLE_ENTRY_ALIVE) {
+            return i;
+        }
+    }
+    return cap;
+}
+
+void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, const void *entries, usize_t *iter, usize_t cap) {
+    _es_hash_table_entry_state_t state = _ES_HASH_TABLE_ENTRY_DEAD;
+    while (state == _ES_HASH_TABLE_ENTRY_DEAD) {
+        (*iter)++;
+        if (*iter >= cap) {
+            break;
+        }
+        state = *((_es_hash_table_entry_state_t *) ((u8_t *) entries + *iter * entry_size + state_stride));
+    }
+}
