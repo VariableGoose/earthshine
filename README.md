@@ -22,6 +22,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 - [x] Threading
 - [ ] Math
 - [ ] Strings
+- [ ] Library loading
 
 # Convention
 Everything is written in lowercase with underscores (some exceptions apply).
