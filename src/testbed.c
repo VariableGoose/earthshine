@@ -2,61 +2,21 @@
 
 #include <stdio.h>
 
-#define COUNT_TO 1000000
-#define MAX_CORES 16
-
-es_mutex_t mutex;
-u64_t i = 0;
-
-void *count(void *arg) {
+void thread_proc(void *arg) {
     (void) arg;
 
-    for (;;) {
-        if (i >= COUNT_TO) {
-            return NULL;
-        }
-
-        i++;
-
-        printf("i = %lld\n", i);
-    }
+    printf("Thread\n");
 }
 
-void *count_sync(void *arg) {
-    (void) arg;
-
-    for (;;) {
-        es_mutex_lock(&mutex);
-        if (i >= COUNT_TO) {
-            es_mutex_unlock(&mutex);
-            return NULL;
-        }
-
-        i++;
-
-        es_mutex_unlock(&mutex);
-        printf("i = %lld\n", i);
-    }
-}
-
-i32_t main(i32_t argc, char **argv) {
-    (void) argv;
-    es_thread_func_t func = argc > 1 ? count_sync : count;
-
-    mutex = es_mutex_init();
-
-    es_thread_t *thread_group = es_malloc(sizeof(es_thread_t) * MAX_CORES);
-
-    for (u32_t j = 0; j < MAX_CORES; j++) {
-        thread_group[j] = es_thread(func, NULL);
+i32_t main(void) {
+    es_da(es_thread_t) t = NULL;
+    for (usize_t i = 0; i < 16; i++) {
+        es_da_push(t, es_thread(thread_proc, NULL));
     }
 
-    for (u32_t j = 0; j < MAX_CORES; j++) {
-        es_thread_wait(thread_group[j], NULL);
+    for (usize_t i = 0; i < es_da_count(t); i++) {
+        es_thread_wait(t[i]);
     }
-
-    es_mutex_free(&mutex);
-    es_free(thread_group);
 
     return 0;
 }

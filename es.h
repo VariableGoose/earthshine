@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.3
+    * Version: 1.4
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -454,13 +454,13 @@ ES_API void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry
 // Threading
 /*=========================*/
 
-typedef void *(*es_thread_func_t)(void *);
+typedef void (*es_thread_proc_t)(void *arg);
 typedef usize_t es_thread_t;
 typedef struct es_mutex_t es_mutex_t;
 
-ES_API es_thread_t es_thread(es_thread_func_t function, void *arg);
+ES_API es_thread_t es_thread(es_thread_proc_t proc, void *arg);
 ES_API es_thread_t es_thread_get_self(void);
-ES_API void es_thread_wait(es_thread_t thread, void **output);
+ES_API void es_thread_wait(es_thread_t thread);
 
 ES_API es_mutex_t es_mutex_init(void);
 ES_API void es_mutex_free(es_mutex_t *mutex);
@@ -482,6 +482,7 @@ ES_API void es_mutex_unlock(es_mutex_t *mutex);
 struct es_mutex_t {
     pthread_mutex_t handle;
 };
+
 #endif // ES_OS_LINUX
 
 /*=========================*/
@@ -499,6 +500,7 @@ struct es_mutex_t {
 struct es_mutex_t {
     HANDLE handle;
 };
+
 #endif // ES_OS_WIN32
 
 /*=========================*/
@@ -510,6 +512,7 @@ struct es_mutex_t {
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /*=========================*/
 // Dynamic array
@@ -868,9 +871,12 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
 // Threading
 /*=========================*/
 
-es_thread_t es_thread(es_thread_func_t function, void *arg) {
+es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
+    typedef void *(*_es_pthread_proc)(void *);
     es_thread_t thread = 0;
-    pthread_create(&thread, NULL, function, arg);
+    // I'm sorry for the pointer conversion on the proc. It's necessary.
+    pthread_create(&thread, NULL, *(_es_pthread_proc *) &proc, arg);
+
     return thread;
 }
 
@@ -878,8 +884,8 @@ es_thread_t es_thread_get_self(void) {
     return (es_thread_t) { pthread_self() };
 }
 
-void es_thread_wait(es_thread_t thread, void **output) {
-    pthread_join(thread, output);
+void es_thread_wait(es_thread_t thread) {
+    pthread_join(thread, NULL);
 }
 
 es_mutex_t es_mutex_init(void) {
@@ -903,19 +909,20 @@ void es_mutex_unlock(es_mutex_t *mutex) { pthread_mutex_unlock(&mutex->handle); 
 // Threading
 /*=========================*/
 
-es_thread_t es_thread(es_thread_func_t function, void *arg) {
+es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
+    typedef usize_t (*_es_win32_thread_proc)(void *);
     es_thread_t thread = 0;
-    HANDLE handle = CreateThread(NULL, 0, function, arg, 0, &thread);
+    HANDLE handle = CreateThread(NULL, 0, *(_es_win32_thread_proc *) &proc, arg, 0, &thread);
     CloseHandle(handle);
     return thread;
 }
 
 es_thread_t es_thread_get_self(void) {
-    GetCurrentThreadId();
+    return GetCurrentThreadId();
 }
 
-void es_thread_wait(es_thread_t thread, void **output) {
-    HADNLE handle = OpenThread(SYNCHRONIZE, false, thread);
+void es_thread_wait(es_thread_t thread) {
+    HANDLE handle = OpenThread(SYNCHRONIZE, false, thread);
     if (handle == NULL) {
         return;
     }
@@ -929,7 +936,7 @@ es_mutex_t es_mutex_init(void) {
 }
 
 void es_mutex_free(es_mutex_t *mutex) {
-    CloseHandle(mutex.handle);
+    CloseHandle(mutex->handle);
 }
 
 void es_mutex_lock(es_mutex_t *mutex) {

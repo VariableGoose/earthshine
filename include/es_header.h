@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.3
+    * Version: 1.4
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -454,13 +454,13 @@ ES_API void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry
 // Threading
 /*=========================*/
 
-typedef void *(*es_thread_func_t)(void *);
+typedef void (*es_thread_proc_t)(void *arg);
 typedef usize_t es_thread_t;
 typedef struct es_mutex_t es_mutex_t;
 
-ES_API es_thread_t es_thread(es_thread_func_t function, void *arg);
+ES_API es_thread_t es_thread(es_thread_proc_t proc, void *arg);
 ES_API es_thread_t es_thread_get_self(void);
-ES_API void es_thread_wait(es_thread_t thread, void **output);
+ES_API void es_thread_wait(es_thread_t thread);
 
 ES_API es_mutex_t es_mutex_init(void);
 ES_API void es_mutex_free(es_mutex_t *mutex);
@@ -482,6 +482,7 @@ ES_API void es_mutex_unlock(es_mutex_t *mutex);
 struct es_mutex_t {
     pthread_mutex_t handle;
 };
+
 #endif // ES_OS_LINUX
 
 /*=========================*/
@@ -499,6 +500,7 @@ struct es_mutex_t {
 struct es_mutex_t {
     HANDLE handle;
 };
+
 #endif // ES_OS_WIN32
 
 /*=========================*/
