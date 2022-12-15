@@ -1,6 +1,6 @@
 # Earthshine
-[Insert logo here]
-A general purpose library written in pedantic c99.
+[Insert logo here]  
+A general purpose library written in pedantic c99. It's incompatable with MSVC because it doesn't implement `__typeof__` which is used quite a bit in macros.
 
 ## Usage
 Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** source file.
