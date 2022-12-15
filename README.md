@@ -14,7 +14,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 - [x] Hash table
 - [ ] Windowing
 - [ ] Graphics
-- [ ] File operations
+- [x] File operations
 - [ ] Math
 - [ ] Logging
 - [ ] Memory debugging
@@ -23,6 +23,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 - [ ] Math
 - [ ] Strings
 - [ ] Library loading
+- [ ] Error handler
 
 # Convention
 Everything is written in lowercase with underscores (some exceptions apply).

@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.4
+    * Version: 1.5
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -466,6 +466,15 @@ ES_API es_mutex_t es_mutex_init(void);
 ES_API void es_mutex_free(es_mutex_t *mutex);
 ES_API void es_mutex_lock(es_mutex_t *mutex);
 ES_API void es_mutex_unlock(es_mutex_t *mutex);
+
+/*=========================*/
+// Filesystem
+/*=========================*/
+
+ES_API b8_t es_file_write(const char *filepath, const char *content);
+ES_API b8_t es_file_append(const char *filepath, const char *content);
+ES_API char *es_file_read(const char *filepath);
+ES_API b8_t es_file_exists(const char *filepath);
 
 /*=========================*/
 // Linux

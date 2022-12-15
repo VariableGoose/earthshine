@@ -354,6 +354,58 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
 }
 
 /*=========================*/
+// Filesystem
+/*=========================*/
+
+b8_t es_file_write(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "wb");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+b8_t es_file_append(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "ab");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+char *es_file_read(const char *filepath) {
+    FILE *stream = fopen(filepath, "rb");
+
+    fseek(stream, 0, SEEK_END);
+    usize_t len = ftell(stream);
+    fseek(stream, 0, SEEK_SET);
+    printf("%lu\n", len);
+
+    // Allocate an extra byte for null terminator.
+    char *buffer = es_malloc(len + 1);
+    fread(buffer, len, 1, stream);
+    // Append null terminator.
+    buffer[len] = '\0';
+
+    fclose(stream);
+
+    return buffer;
+}
+
+b8_t es_file_exists(const char *filepath) {
+    FILE *f = fopen(filepath, "r");
+    return f != NULL;
+}
+
+/*=========================*/
 // Linux
 /*=========================*/
 

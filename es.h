@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.4
+    * Version: 1.5
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -468,6 +468,15 @@ ES_API void es_mutex_lock(es_mutex_t *mutex);
 ES_API void es_mutex_unlock(es_mutex_t *mutex);
 
 /*=========================*/
+// Filesystem
+/*=========================*/
+
+ES_API b8_t es_file_write(const char *filepath, const char *content);
+ES_API b8_t es_file_append(const char *filepath, const char *content);
+ES_API char *es_file_read(const char *filepath);
+ES_API b8_t es_file_exists(const char *filepath);
+
+/*=========================*/
 // Linux
 /*=========================*/
 
@@ -859,6 +868,58 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
         }
         state = *((_es_hash_table_entry_state_t *) ((u8_t *) entries + *iter * entry_size + state_stride));
     }
+}
+
+/*=========================*/
+// Filesystem
+/*=========================*/
+
+b8_t es_file_write(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "wb");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+b8_t es_file_append(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "ab");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+char *es_file_read(const char *filepath) {
+    FILE *stream = fopen(filepath, "rb");
+
+    fseek(stream, 0, SEEK_END);
+    usize_t len = ftell(stream);
+    fseek(stream, 0, SEEK_SET);
+    printf("%lu\n", len);
+
+    // Allocate an extra byte for null terminator.
+    char *buffer = es_malloc(len + 1);
+    fread(buffer, len, 1, stream);
+    // Append null terminator.
+    buffer[len] = '\0';
+
+    fclose(stream);
+
+    return buffer;
+}
+
+b8_t es_file_exists(const char *filepath) {
+    FILE *f = fopen(filepath, "r");
+    return f != NULL;
 }
 
 /*=========================*/
