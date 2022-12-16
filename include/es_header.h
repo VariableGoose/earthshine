@@ -236,6 +236,11 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 // Get stride of a memebr of a struct.
 #define es_offset(S, M) ((usize_t) &(((S *) 0)->M))
 
+#define es_max(A, B) ((A) > (B) ? (A) : (B))
+#define es_min(A, B) ((A) < (B) ? (A) : (B))
+#define es_clamp(V, MIN, MAX) ((V) < (MIN) ? (MIN) : (V) > (MAX) ? (MAX) : (V))
+#define es_lerp(A, B, T) ((A) + ((B) - (A)) * (T))
+
 #ifndef ES_SIPHASH_C_ROUNDS
 #define ES_SIPHASH_C_ROUNDS 1
 #endif // ES_SIPHASH_C_ROUNDS
