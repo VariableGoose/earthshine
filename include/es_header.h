@@ -481,16 +481,6 @@ ES_API b8_t es_file_exists(const char *filepath);
 // Math
 /*=========================*/
 
-#define X 0
-#define Y 1
-#define Z 2
-#define W 3
-
-#define R 0
-#define G 1
-#define B 2
-#define A 3
-
 // 2D vector
 typedef struct v2_t { f32_t x, y; } v2_t;
 
@@ -568,8 +558,19 @@ ES_INLINE m2_t m2_identity(void) { return (m2_t) {{1, 0}, {0, 1}}; }
 ES_INLINE m2_t m2_muls(m2_t mat, f32_t s) { return (m2_t) {v2_muls(mat.i, s), v2_muls(mat.j, s)}; }
 ES_INLINE v2_t m2_mulv(m2_t mat, v2_t vec) { return v2_add(v2_muls(mat.i, vec.x), v2_muls(mat.j, vec.y)); }
 ES_INLINE m2_t m2_mul(m2_t a, m2_t b) { return (m2_t) { m2_mulv(b, a.i), m2_mulv(b, a.j) }; }
-ES_INLINE m2_t m2_inv(m2_t mat) { return m2_muls((m2_t) {{mat.j.y, -mat.i.y}, {-mat.j.x, mat.i.x}}, 0.1f); }
-ES_INLINE f32_t m2_det(m2_t mat) { return mat.i.x * mat.j.y - mat.i.y * mat.j.x; }
+ES_INLINE f32_t m2_det(m2_t mat) { return mat.i.x * mat.j.y - mat.j.x * mat.i.y; }
+ES_INLINE m2_t m2_inv(m2_t mat) { return m2_muls((m2_t) {{mat.j.y, -mat.i.y}, {-mat.j.x, mat.i.x}}, 1.0f / m2_det(mat)); }
+
+// 3x3 matrix
+typedef struct m3_t { v3_t i, j, k; } m3_t;
+
+ES_INLINE m3_t m3v(v3_t i, v3_t j, v3_t k) { return (m3_t) {i, j, k}; }
+ES_INLINE m3_t m3f(f32_t ix, f32_t iy, f32_t iz, f32_t jx, f32_t jy, f32_t jz, f32_t kx, f32_t ky, f32_t kz) { return (m3_t) {{ix, iy, iz}, {jx, jy, jz}, {kx, ky, kz}}; }
+ES_INLINE m3_t m3_identity(void) { return (m3_t) {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}; }
+ES_INLINE m3_t m3_muls(m3_t mat, f32_t s) { return (m3_t) {v3_muls(mat.i, s), v3_muls(mat.j, s), v3_muls(mat.k, s)}; }
+ES_INLINE v3_t m3_mulv(m3_t mat, v3_t vec) { return v3_add(v3_add(v3_muls(mat.i, vec.x), v3_muls(mat.j, vec.y)), v3_muls(mat.k, vec.z)); }
+ES_INLINE m3_t m3_mul(m3_t a, m3_t b) { return (m3_t) { m3_mulv(b, a.i), m3_mulv(b, a.j), m3_mulv(b, a.k) }; }
+ES_API m3_t m3_inv(m3_t mat);
 
 /*=========================*/
 // Linux

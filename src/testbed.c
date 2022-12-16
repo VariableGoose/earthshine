@@ -1,11 +1,21 @@
 #include "es_header.h"
 
 i32_t main(void) {
-    m2_t m = m2f(4, 7, 2, 6);
-    m2_t m_inv = m2_inv(m);
-    m2_t identity = m2_mul(m, m_inv);
+    m3_t m = m3f(
+        3,  2,  0,
+        0,  0,  1,
+        2, -2, 1
+    );
+    m3_t inv = m3_inv(m);
+    m3_t res = m3_mul(m, inv);
+    f32_t *f = (f32_t *) &res;
 
-    printf("%f, %f\n%f, %f\n", identity.i.x, identity.i.y, identity.j.x, identity.j.y);
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            printf("%3.f", f[x + y * 3]);
+        }
+        printf("\n");
+    }
 
     return 0;
 }

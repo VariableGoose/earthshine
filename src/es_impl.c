@@ -406,6 +406,55 @@ b8_t es_file_exists(const char *filepath) {
 }
 
 /*=========================*/
+// Math
+/*=========================*/
+
+m3_t m3_inv(m3_t mat) {
+    // Implementation based on: https://www.mathsisfun.com/algebra/matrix-inverse-minors-cofactors-adjugate.html
+
+    //
+    // I have no idea how or why any of this works. I'm just happy it is.
+    //
+
+    f32_t f[3][3];
+    memcpy(f, &mat, sizeof(m3_t));
+
+    f32_t f00 = f[0][0], f01 = f[0][1], f02 = f[0][2];
+    f32_t f10 = f[1][0], f11 = f[1][1], f12 = f[1][2];
+    f32_t f20 = f[2][0], f21 = f[2][1], f22 = f[2][2];
+
+    // Step 1: Matrix of minors
+    f32_t minor[3][3] = {
+        {m2_det(m2f(f11, f21, f12, f22)), m2_det(m2f(f10, f20, f12, f22)), m2_det(m2f(f10, f20, f11, f21))},
+        {m2_det(m2f(f01, f21, f02, f22)), m2_det(m2f(f00, f20, f02, f22)), m2_det(m2f(f00, f20, f01, f21))},
+        {m2_det(m2f(f01, f11, f02, f12)), m2_det(m2f(f00, f10, f02, f12)), m2_det(m2f(f00, f10, f01, f11))},
+    };
+
+    // Step 2: Matrix of cofactors
+    f32_t cofactor[3][3];
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            cofactor[x][y] = (x + y) % 2 == 0 ? minor[x][y] : -minor[x][y];
+        }
+    }
+
+    // Step 3: Adjugate/adjoint
+    m3_t adj_m;
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            *((f32_t *) &adj_m + (x + y * 3)) = cofactor[x][y];
+        }
+    }
+
+    // Step 4: Multiply by 1 / determinant
+    f32_t det = f00 * minor[0][0] - f10 * minor[1][0] + f20 * minor[2][0];
+
+    m3_t finished = m3_muls(adj_m, 1.0f / det);
+
+    return finished;
+}
+
+/*=========================*/
 // Linux
 /*=========================*/
 
