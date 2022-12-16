@@ -507,9 +507,35 @@ ES_INLINE v2_t v2_adds(v2_t vec, f32_t s) { return (v2_t) {vec.x + s, vec.y + s}
 ES_INLINE v2_t v2_subs(v2_t vec, f32_t s) { return (v2_t) {vec.x - s, vec.y - s}; }
 
 ES_INLINE f32_t v2_mag(v2_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y); }
-ES_INLINE v2_t v2_norm(v2_t vec) { return v2_muls(vec, 1.0f / v2_mag(vec)); }
+ES_INLINE v2_t  v2_norm(v2_t vec) { return v2_muls(vec, 1.0f / v2_mag(vec)); }
 ES_INLINE f32_t v2_dot(v2_t a, v2_t b) { return a.x*b.x + a.y*b.y; }
 ES_INLINE f32_t v2_cross(v2_t a, v2_t b) { return a.x*b.y - a.y*b.x; }
+
+// 3D vector
+typedef struct v3_t { f32_t x, y, z; } v3_t;
+
+ES_INLINE v3_t v3(f32_t x, f32_t y, f32_t z) { return (v3_t) {x, y, z}; }
+
+ES_INLINE v3_t v3_mul(v3_t a, v3_t b) { return (v3_t) {a.x * b.x, a.y * b.y, a.z * b.z}; }
+ES_INLINE v3_t v3_div(v3_t a, v3_t b) { return (v3_t) {a.x / b.x, a.y / b.y, a.z / b.z}; }
+ES_INLINE v3_t v3_add(v3_t a, v3_t b) { return (v3_t) {a.x + b.x, a.y + b.y, a.z + b.z}; }
+ES_INLINE v3_t v3_sub(v3_t a, v3_t b) { return (v3_t) {a.x - b.x, a.y - b.y, a.z - b.z}; }
+
+ES_INLINE v3_t v3_muls(v3_t vec, f32_t s) { return (v3_t) {vec.x * s, vec.y * s, vec.z * s}; }
+ES_INLINE v3_t v3_divs(v3_t vec, f32_t s) { return (v3_t) {vec.x / s, vec.y / s, vec.z / s}; }
+ES_INLINE v3_t v3_adds(v3_t vec, f32_t s) { return (v3_t) {vec.x + s, vec.y + s, vec.z + s}; }
+ES_INLINE v3_t v3_subs(v3_t vec, f32_t s) { return (v3_t) {vec.x - s, vec.y - s, vec.z - s}; }
+
+ES_INLINE f32_t v3_mag(v3_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z); }
+ES_INLINE v3_t  v3_norm(v3_t vec) { return v3_muls(vec, 1.0f / v3_mag(vec)); }
+ES_INLINE f32_t v3_dot(v3_t a, v3_t b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
+ES_INLINE v3_t v3_cross(v3_t a, v3_t b) {
+    return v3(
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x
+    );
+}
 
 /*=========================*/
 // Linux
