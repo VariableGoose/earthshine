@@ -41,6 +41,7 @@
 #define ES_H
 
 #include <string.h>
+#include <math.h>
 
 /*=========================*/
 // Context cracking
@@ -475,6 +476,40 @@ ES_API b8_t es_file_write(const char *filepath, const char *content);
 ES_API b8_t es_file_append(const char *filepath, const char *content);
 ES_API char *es_file_read(const char *filepath);
 ES_API b8_t es_file_exists(const char *filepath);
+
+/*=========================*/
+// Math
+/*=========================*/
+
+#define X 0
+#define Y 1
+#define Z 2
+#define W 3
+
+#define R 0
+#define G 1
+#define B 2
+#define A 3
+
+// 2D vector
+typedef struct v2_t { f32_t x, y; } v2_t;
+
+ES_INLINE v2_t v2(f32_t x, f32_t y) { return (v2_t) {x, y}; }
+
+ES_INLINE v2_t v2_mul(v2_t a, v2_t b) { return (v2_t) {a.x * b.x, a.y * b.y}; }
+ES_INLINE v2_t v2_div(v2_t a, v2_t b) { return (v2_t) {a.x / b.x, a.y / b.y}; }
+ES_INLINE v2_t v2_add(v2_t a, v2_t b) { return (v2_t) {a.x + b.x, a.y + b.y}; }
+ES_INLINE v2_t v2_sub(v2_t a, v2_t b) { return (v2_t) {a.x - b.x, a.y - b.y}; }
+
+ES_INLINE v2_t v2_muls(v2_t vec, f32_t s) { return (v2_t) {vec.x * s, vec.y * s}; }
+ES_INLINE v2_t v2_divs(v2_t vec, f32_t s) { return (v2_t) {vec.x / s, vec.y / s}; }
+ES_INLINE v2_t v2_adds(v2_t vec, f32_t s) { return (v2_t) {vec.x + s, vec.y + s}; }
+ES_INLINE v2_t v2_subs(v2_t vec, f32_t s) { return (v2_t) {vec.x - s, vec.y - s}; }
+
+ES_INLINE f32_t v2_mag(v2_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y); }
+ES_INLINE v2_t v2_norm(v2_t vec) { return v2_muls(vec, 1.0f / v2_mag(vec)); }
+ES_INLINE f32_t v2_dot(v2_t a, v2_t b) { return a.x*b.x + a.y*b.y; }
+ES_INLINE f32_t v2_cross(v2_t a, v2_t b) { return a.x*b.y - a.y*b.x; }
 
 /*=========================*/
 // Linux
