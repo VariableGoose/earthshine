@@ -570,7 +570,19 @@ ES_INLINE m3_t m3_identity(void) { return (m3_t) {{1, 0, 0}, {0, 1, 0}, {0, 0, 1
 ES_INLINE m3_t m3_muls(m3_t mat, f32_t s) { return (m3_t) {v3_muls(mat.i, s), v3_muls(mat.j, s), v3_muls(mat.k, s)}; }
 ES_INLINE v3_t m3_mulv(m3_t mat, v3_t vec) { return v3_add(v3_add(v3_muls(mat.i, vec.x), v3_muls(mat.j, vec.y)), v3_muls(mat.k, vec.z)); }
 ES_INLINE m3_t m3_mul(m3_t a, m3_t b) { return (m3_t) { m3_mulv(b, a.i), m3_mulv(b, a.j), m3_mulv(b, a.k) }; }
+ES_INLINE f32_t m3_det(m3_t mat) { return mat.i.x * m2_det(m2f(mat.j.y, mat.j.z, mat.k.y, mat.k.z)) - mat.j.x * m2_det(m2f(mat.i.y, mat.i.z, mat.k.y, mat.k.z)) + mat.k.x * m2_det(m2f(mat.i.y, mat.i.z, mat.j.y, mat.j.z)); }
 ES_API m3_t m3_inv(m3_t mat);
+
+// 4x4 matrix
+typedef struct m4_t { v4_t i, j, k, l; } m4_t;
+
+ES_INLINE m4_t m4v(v4_t i, v4_t j, v4_t k, v4_t l) { return (m4_t) {i, j, k, l}; }
+ES_INLINE m4_t m4f(f32_t ix, f32_t iy, f32_t iz, f32_t iw, f32_t jx, f32_t jy, f32_t jz, f32_t jw, f32_t kx, f32_t ky, f32_t kz, f32_t kw, f32_t lx, f32_t ly, f32_t lz, f32_t lw) { return (m4_t) {{ix, iy, iz, iw}, {jx, jy, jz, jw}, {kx, ky, kz, kw}, {lx, ly, lz, lw}}; }
+ES_INLINE m4_t m4_identity(void) { return (m4_t) {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}; }
+ES_INLINE m4_t m4_muls(m4_t mat, f32_t s) { return (m4_t) {v4_muls(mat.i, s), v4_muls(mat.j, s), v4_muls(mat.k, s), v4_muls(mat.l, s)}; }
+ES_INLINE v4_t m4_mulv(m4_t mat, v4_t vec) { return v4_add(v4_add(v4_add(v4_muls(mat.i, vec.x), v4_muls(mat.j, vec.y)), v4_muls(mat.k, vec.z)), v4_muls(mat.l, vec.w)); }
+ES_INLINE m4_t m4_mul(m4_t a, m4_t b) { return (m4_t) { m4_mulv(b, a.i), m4_mulv(b, a.j), m4_mulv(b, a.k), m4_mulv(b, a.l) }; }
+ES_API m4_t m4_inv(m4_t mat);
 
 /*=========================*/
 // Linux

@@ -454,6 +454,62 @@ m3_t m3_inv(m3_t mat) {
     return finished;
 }
 
+m4_t m4_inv(m4_t mat) {
+    (void) mat;
+
+    f32_t f[4][4];
+    memcpy(f, &mat, sizeof(m4_t));
+
+    // Step 1: Matrix of minors
+    m4_t minor;
+    m3_t det;
+    u8_t det_i = 0;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            for (i8_t i = 0; i < 4; i++) {
+                for (i8_t j = 0; j < 4; j++) {
+                    if (i == x) { continue; }
+                    if (j == y) { continue; }
+                    ((f32_t *) &det)[det_i++] = f[i][j];
+                }
+            }
+            det_i = 0;
+            printf("%d%d\n", x, y);
+            for (u8_t i = 0; i < 3; i++) {
+                for (u8_t j = 0; j < 3; j++) {
+                    printf("%3.f", ((f32_t *) &det)[i + j * 3]);
+                }
+                printf("\n");
+            }
+            printf("%f\n\n", m3_det(det));
+            ((f32_t *) &minor)[x + y * 4] = m3_det(det);
+        }
+    }
+
+    // Step 2: Matrix of cofactors
+    m4_t cofactor;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            ((f32_t *) &cofactor)[x + y * 4] = ((x + y) % 2 == 0) ? ((f32_t *) &minor)[x + y * 4] : -((f32_t *) &minor)[x + y * 4];
+        }
+    }
+
+    // Step 3: Adjugate/adjoint
+    m4_t adj;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            ((f32_t *) &adj)[x + y * 4] = ((f32_t *) &cofactor)[y + x * 4];
+        }
+    }
+
+    // Step 4: Multiply by 1 / determinant
+    f32_t mat_det = mat.i.x * minor.i.x - mat.j.x * minor.j.x + mat.k.x * minor.k.x - mat.l.x * minor.l.x;
+
+    m4_t finished = m4_muls(adj, 1.0f / mat_det);
+
+    return finished;
+}
+
 /*=========================*/
 // Linux
 /*=========================*/
