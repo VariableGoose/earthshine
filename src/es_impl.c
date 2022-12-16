@@ -354,58 +354,6 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
 }
 
 /*=========================*/
-// Filesystem
-/*=========================*/
-
-b8_t es_file_write(const char *filepath, const char *content) {
-    FILE *stream = fopen(filepath, "wb");
-    if (stream == NULL) {
-        return false;
-    }
-
-    fwrite(content, strlen(content), 1, stream);
-    fclose(stream);
-
-    return true;
-}
-
-b8_t es_file_append(const char *filepath, const char *content) {
-    FILE *stream = fopen(filepath, "ab");
-    if (stream == NULL) {
-        return false;
-    }
-
-    fwrite(content, strlen(content), 1, stream);
-    fclose(stream);
-
-    return true;
-}
-
-char *es_file_read(const char *filepath) {
-    FILE *stream = fopen(filepath, "rb");
-
-    fseek(stream, 0, SEEK_END);
-    usize_t len = ftell(stream);
-    fseek(stream, 0, SEEK_SET);
-    printf("%lu\n", len);
-
-    // Allocate an extra byte for null terminator.
-    char *buffer = es_malloc(len + 1);
-    fread(buffer, len, 1, stream);
-    // Append null terminator.
-    buffer[len] = '\0';
-
-    fclose(stream);
-
-    return buffer;
-}
-
-b8_t es_file_exists(const char *filepath) {
-    FILE *f = fopen(filepath, "r");
-    return f != NULL;
-}
-
-/*=========================*/
 // Threading
 /*=========================*/
 
@@ -486,3 +434,160 @@ void es_mutex_unlock(es_mutex_t *mutex) {
 }
 
 #endif // ES_OS_WIN32
+
+/*=========================*/
+// Filesystem
+/*=========================*/
+
+b8_t es_file_write(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "wb");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+b8_t es_file_append(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "ab");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+char *es_file_read(const char *filepath) {
+    FILE *stream = fopen(filepath, "rb");
+
+    fseek(stream, 0, SEEK_END);
+    usize_t len = ftell(stream);
+    fseek(stream, 0, SEEK_SET);
+    printf("%lu\n", len);
+
+    // Allocate an extra byte for null terminator.
+    char *buffer = es_malloc(len + 1);
+    fread(buffer, len, 1, stream);
+    // Append null terminator.
+    buffer[len] = '\0';
+
+    fclose(stream);
+
+    return buffer;
+}
+
+b8_t es_file_exists(const char *filepath) {
+    FILE *f = fopen(filepath, "r");
+    return f != NULL;
+}
+
+/*=========================*/
+// Math
+/*=========================*/
+
+m3_t m3_inv(m3_t mat) {
+    // Implementation based on: https://www.mathsisfun.com/algebra/matrix-inverse-minors-cofactors-adjugate.html
+
+    //
+    // I have no idea how or why any of this works. I'm just happy it is.
+    //
+
+    f32_t f[3][3];
+    memcpy(f, &mat, sizeof(m3_t));
+
+    f32_t f00 = f[0][0], f01 = f[0][1], f02 = f[0][2];
+    f32_t f10 = f[1][0], f11 = f[1][1], f12 = f[1][2];
+    f32_t f20 = f[2][0], f21 = f[2][1], f22 = f[2][2];
+
+    // Step 1: Matrix of minors
+    f32_t minor[3][3] = {
+        {m2_det(m2f(f11, f21, f12, f22)), m2_det(m2f(f10, f20, f12, f22)), m2_det(m2f(f10, f20, f11, f21))},
+        {m2_det(m2f(f01, f21, f02, f22)), m2_det(m2f(f00, f20, f02, f22)), m2_det(m2f(f00, f20, f01, f21))},
+        {m2_det(m2f(f01, f11, f02, f12)), m2_det(m2f(f00, f10, f02, f12)), m2_det(m2f(f00, f10, f01, f11))},
+    };
+
+    // Step 2: Matrix of cofactors
+    f32_t cofactor[3][3];
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            cofactor[x][y] = (x + y) % 2 == 0 ? minor[x][y] : -minor[x][y];
+        }
+    }
+
+    // Step 3: Adjugate/adjoint
+    m3_t adj_m;
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            *((f32_t *) &adj_m + (x + y * 3)) = cofactor[x][y];
+        }
+    }
+
+    // Step 4: Multiply by 1 / determinant
+    f32_t det = f00 * minor[0][0] - f10 * minor[1][0] + f20 * minor[2][0];
+
+    m3_t finished = m3_muls(adj_m, 1.0f / det);
+
+    return finished;
+}
+
+m4_t m4_inv(m4_t mat) {
+    (void) mat;
+
+    f32_t f[4][4];
+    memcpy(f, &mat, sizeof(m4_t));
+
+    // Step 1: Matrix of minors
+    m4_t minor;
+    m3_t det;
+    u8_t det_i = 0;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            for (i8_t i = 0; i < 4; i++) {
+                for (i8_t j = 0; j < 4; j++) {
+                    if (i == x) { continue; }
+                    if (j == y) { continue; }
+                    ((f32_t *) &det)[det_i++] = f[i][j];
+                }
+            }
+            det_i = 0;
+            printf("%d%d\n", x, y);
+            for (u8_t i = 0; i < 3; i++) {
+                for (u8_t j = 0; j < 3; j++) {
+                    printf("%3.f", ((f32_t *) &det)[i + j * 3]);
+                }
+                printf("\n");
+            }
+            printf("%f\n\n", m3_det(det));
+            ((f32_t *) &minor)[x + y * 4] = m3_det(det);
+        }
+    }
+
+    // Step 2: Matrix of cofactors
+    m4_t cofactor;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            ((f32_t *) &cofactor)[x + y * 4] = ((x + y) % 2 == 0) ? ((f32_t *) &minor)[x + y * 4] : -((f32_t *) &minor)[x + y * 4];
+        }
+    }
+
+    // Step 3: Adjugate/adjoint
+    m4_t adj;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            ((f32_t *) &adj)[x + y * 4] = ((f32_t *) &cofactor)[y + x * 4];
+        }
+    }
+
+    // Step 4: Multiply by 1 / determinant
+    f32_t mat_det = mat.i.x * minor.i.x - mat.j.x * minor.j.x + mat.k.x * minor.k.x - mat.l.x * minor.l.x;
+
+    m4_t finished = m4_muls(adj, 1.0f / mat_det);
+
+    return finished;
+}

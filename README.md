@@ -15,7 +15,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 - [ ] Windowing
 - [ ] Graphics
 - [x] File operations
-- [ ] Math
+- [x] Math
 - [ ] Logging
 - [ ] Memory debugging
 - [x] Assertions

@@ -59,6 +59,7 @@
 /*=========================*/
 
 #include <string.h>
+#include <math.h>
 
 //
 // OS Specific
@@ -507,6 +508,113 @@ ES_API char *es_file_read(const char *filepath);
 ES_API b8_t es_file_exists(const char *filepath);
 
 /*=========================*/
+// Math
+/*=========================*/
+
+// 2D vector
+typedef struct v2_t { f32_t x, y; } v2_t;
+
+ES_INLINE v2_t v2(f32_t x, f32_t y) { return (v2_t) {x, y}; }
+ES_INLINE v2_t v2s(f32_t scaler) { return (v2_t) {scaler, scaler}; }
+
+ES_INLINE v2_t v2_mul(v2_t a, v2_t b) { return (v2_t) {a.x * b.x, a.y * b.y}; }
+ES_INLINE v2_t v2_div(v2_t a, v2_t b) { return (v2_t) {a.x / b.x, a.y / b.y}; }
+ES_INLINE v2_t v2_add(v2_t a, v2_t b) { return (v2_t) {a.x + b.x, a.y + b.y}; }
+ES_INLINE v2_t v2_sub(v2_t a, v2_t b) { return (v2_t) {a.x - b.x, a.y - b.y}; }
+
+ES_INLINE v2_t v2_muls(v2_t vec, f32_t s) { return (v2_t) {vec.x * s, vec.y * s}; }
+ES_INLINE v2_t v2_divs(v2_t vec, f32_t s) { return (v2_t) {vec.x / s, vec.y / s}; }
+ES_INLINE v2_t v2_adds(v2_t vec, f32_t s) { return (v2_t) {vec.x + s, vec.y + s}; }
+ES_INLINE v2_t v2_subs(v2_t vec, f32_t s) { return (v2_t) {vec.x - s, vec.y - s}; }
+
+ES_INLINE f32_t v2_mag(v2_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y); }
+ES_INLINE v2_t  v2_norm(v2_t vec) { return v2_muls(vec, 1.0f / v2_mag(vec)); }
+ES_INLINE f32_t v2_dot(v2_t a, v2_t b) { return a.x*b.x + a.y*b.y; }
+ES_INLINE f32_t v2_cross(v2_t a, v2_t b) { return a.x*b.y - a.y*b.x; }
+
+// 3D vector
+typedef struct v3_t { f32_t x, y, z; } v3_t;
+
+ES_INLINE v3_t v3(f32_t x, f32_t y, f32_t z) { return (v3_t) {x, y, z}; }
+ES_INLINE v3_t v3s(f32_t scaler) { return (v3_t) {scaler, scaler, scaler}; }
+
+ES_INLINE v3_t v3_mul(v3_t a, v3_t b) { return (v3_t) {a.x * b.x, a.y * b.y, a.z * b.z}; }
+ES_INLINE v3_t v3_div(v3_t a, v3_t b) { return (v3_t) {a.x / b.x, a.y / b.y, a.z / b.z}; }
+ES_INLINE v3_t v3_add(v3_t a, v3_t b) { return (v3_t) {a.x + b.x, a.y + b.y, a.z + b.z}; }
+ES_INLINE v3_t v3_sub(v3_t a, v3_t b) { return (v3_t) {a.x - b.x, a.y - b.y, a.z - b.z}; }
+
+ES_INLINE v3_t v3_muls(v3_t vec, f32_t s) { return (v3_t) {vec.x * s, vec.y * s, vec.z * s}; }
+ES_INLINE v3_t v3_divs(v3_t vec, f32_t s) { return (v3_t) {vec.x / s, vec.y / s, vec.z / s}; }
+ES_INLINE v3_t v3_adds(v3_t vec, f32_t s) { return (v3_t) {vec.x + s, vec.y + s, vec.z + s}; }
+ES_INLINE v3_t v3_subs(v3_t vec, f32_t s) { return (v3_t) {vec.x - s, vec.y - s, vec.z - s}; }
+
+ES_INLINE f32_t v3_mag(v3_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z); }
+ES_INLINE v3_t  v3_norm(v3_t vec) { return v3_muls(vec, 1.0f / v3_mag(vec)); }
+ES_INLINE f32_t v3_dot(v3_t a, v3_t b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
+ES_INLINE v3_t v3_cross(v3_t a, v3_t b) {
+    return v3(
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x
+    );
+}
+
+// 4D vector
+typedef struct v4_t { f32_t x, y, z, w; } v4_t;
+
+ES_INLINE v4_t v4(f32_t x, f32_t y, f32_t z, f32_t w) { return (v4_t) {x, y, z, w}; }
+ES_INLINE v4_t v4s(f32_t scaler) { return (v4_t) {scaler, scaler, scaler, scaler}; }
+
+ES_INLINE v4_t v4_mul(v4_t a, v4_t b) { return (v4_t) {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w}; }
+ES_INLINE v4_t v4_div(v4_t a, v4_t b) { return (v4_t) {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w}; }
+ES_INLINE v4_t v4_add(v4_t a, v4_t b) { return (v4_t) {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w}; }
+ES_INLINE v4_t v4_sub(v4_t a, v4_t b) { return (v4_t) {a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w}; }
+
+ES_INLINE v4_t v4_muls(v4_t vec, f32_t s) { return (v4_t) {vec.x * s, vec.y * s, vec.z * s, vec.w * s}; }
+ES_INLINE v4_t v4_divs(v4_t vec, f32_t s) { return (v4_t) {vec.x / s, vec.y / s, vec.z / s, vec.w / s}; }
+ES_INLINE v4_t v4_adds(v4_t vec, f32_t s) { return (v4_t) {vec.x + s, vec.y + s, vec.z + s, vec.w + s}; }
+ES_INLINE v4_t v4_subs(v4_t vec, f32_t s) { return (v4_t) {vec.x - s, vec.y - s, vec.z - s, vec.w - s}; }
+
+ES_INLINE f32_t v4_mag(v4_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w); }
+ES_INLINE v4_t  v4_norm(v4_t vec) { return v4_muls(vec, 1.0f / v4_mag(vec)); }
+ES_INLINE f32_t v4_dot(v4_t a, v4_t b) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+
+// 2x2 matrix
+typedef struct m2_t { v2_t i, j; } m2_t;
+
+ES_INLINE m2_t m2v(v2_t i, v2_t j) { return (m2_t) {i, j}; }
+ES_INLINE m2_t m2f(f32_t ix, f32_t iy, f32_t jx, f32_t jy) { return (m2_t) {{ix, iy}, {jx, jy}}; }
+ES_INLINE m2_t m2_identity(void) { return (m2_t) {{1, 0}, {0, 1}}; }
+ES_INLINE m2_t m2_muls(m2_t mat, f32_t s) { return (m2_t) {v2_muls(mat.i, s), v2_muls(mat.j, s)}; }
+ES_INLINE v2_t m2_mulv(m2_t mat, v2_t vec) { return v2_add(v2_muls(mat.i, vec.x), v2_muls(mat.j, vec.y)); }
+ES_INLINE m2_t m2_mul(m2_t a, m2_t b) { return (m2_t) { m2_mulv(b, a.i), m2_mulv(b, a.j) }; }
+ES_INLINE f32_t m2_det(m2_t mat) { return mat.i.x * mat.j.y - mat.j.x * mat.i.y; }
+ES_INLINE m2_t m2_inv(m2_t mat) { return m2_muls((m2_t) {{mat.j.y, -mat.i.y}, {-mat.j.x, mat.i.x}}, 1.0f / m2_det(mat)); }
+
+// 3x3 matrix
+typedef struct m3_t { v3_t i, j, k; } m3_t;
+
+ES_INLINE m3_t m3v(v3_t i, v3_t j, v3_t k) { return (m3_t) {i, j, k}; }
+ES_INLINE m3_t m3f(f32_t ix, f32_t iy, f32_t iz, f32_t jx, f32_t jy, f32_t jz, f32_t kx, f32_t ky, f32_t kz) { return (m3_t) {{ix, iy, iz}, {jx, jy, jz}, {kx, ky, kz}}; }
+ES_INLINE m3_t m3_identity(void) { return (m3_t) {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}; }
+ES_INLINE m3_t m3_muls(m3_t mat, f32_t s) { return (m3_t) {v3_muls(mat.i, s), v3_muls(mat.j, s), v3_muls(mat.k, s)}; }
+ES_INLINE v3_t m3_mulv(m3_t mat, v3_t vec) { return v3_add(v3_add(v3_muls(mat.i, vec.x), v3_muls(mat.j, vec.y)), v3_muls(mat.k, vec.z)); }
+ES_INLINE m3_t m3_mul(m3_t a, m3_t b) { return (m3_t) { m3_mulv(b, a.i), m3_mulv(b, a.j), m3_mulv(b, a.k) }; }
+ES_INLINE f32_t m3_det(m3_t mat) { return mat.i.x * m2_det(m2f(mat.j.y, mat.j.z, mat.k.y, mat.k.z)) - mat.j.x * m2_det(m2f(mat.i.y, mat.i.z, mat.k.y, mat.k.z)) + mat.k.x * m2_det(m2f(mat.i.y, mat.i.z, mat.j.y, mat.j.z)); }
+ES_API m3_t m3_inv(m3_t mat);
+
+// 4x4 matrix
+typedef struct m4_t { v4_t i, j, k, l; } m4_t;
+
+ES_INLINE m4_t m4v(v4_t i, v4_t j, v4_t k, v4_t l) { return (m4_t) {i, j, k, l}; }
+ES_INLINE m4_t m4f(f32_t ix, f32_t iy, f32_t iz, f32_t iw, f32_t jx, f32_t jy, f32_t jz, f32_t jw, f32_t kx, f32_t ky, f32_t kz, f32_t kw, f32_t lx, f32_t ly, f32_t lz, f32_t lw) { return (m4_t) {{ix, iy, iz, iw}, {jx, jy, jz, jw}, {kx, ky, kz, kw}, {lx, ly, lz, lw}}; }
+ES_INLINE m4_t m4_identity(void) { return (m4_t) {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}; }
+ES_INLINE m4_t m4_muls(m4_t mat, f32_t s) { return (m4_t) {v4_muls(mat.i, s), v4_muls(mat.j, s), v4_muls(mat.k, s), v4_muls(mat.l, s)}; }
+ES_INLINE v4_t m4_mulv(m4_t mat, v4_t vec) { return v4_add(v4_add(v4_add(v4_muls(mat.i, vec.x), v4_muls(mat.j, vec.y)), v4_muls(mat.k, vec.z)), v4_muls(mat.l, vec.w)); }
+ES_INLINE m4_t m4_mul(m4_t a, m4_t b) { return (m4_t) { m4_mulv(b, a.i), m4_mulv(b, a.j), m4_mulv(b, a.k), m4_mulv(b, a.l) }; }
+ES_API m4_t m4_inv(m4_t mat);
+
+/*=========================*/
 // Implementation
 /*=========================*/
 
@@ -865,58 +973,6 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
 }
 
 /*=========================*/
-// Filesystem
-/*=========================*/
-
-b8_t es_file_write(const char *filepath, const char *content) {
-    FILE *stream = fopen(filepath, "wb");
-    if (stream == NULL) {
-        return false;
-    }
-
-    fwrite(content, strlen(content), 1, stream);
-    fclose(stream);
-
-    return true;
-}
-
-b8_t es_file_append(const char *filepath, const char *content) {
-    FILE *stream = fopen(filepath, "ab");
-    if (stream == NULL) {
-        return false;
-    }
-
-    fwrite(content, strlen(content), 1, stream);
-    fclose(stream);
-
-    return true;
-}
-
-char *es_file_read(const char *filepath) {
-    FILE *stream = fopen(filepath, "rb");
-
-    fseek(stream, 0, SEEK_END);
-    usize_t len = ftell(stream);
-    fseek(stream, 0, SEEK_SET);
-    printf("%lu\n", len);
-
-    // Allocate an extra byte for null terminator.
-    char *buffer = es_malloc(len + 1);
-    fread(buffer, len, 1, stream);
-    // Append null terminator.
-    buffer[len] = '\0';
-
-    fclose(stream);
-
-    return buffer;
-}
-
-b8_t es_file_exists(const char *filepath) {
-    FILE *f = fopen(filepath, "r");
-    return f != NULL;
-}
-
-/*=========================*/
 // Threading
 /*=========================*/
 
@@ -997,5 +1053,162 @@ void es_mutex_unlock(es_mutex_t *mutex) {
 }
 
 #endif // ES_OS_WIN32
+
+/*=========================*/
+// Filesystem
+/*=========================*/
+
+b8_t es_file_write(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "wb");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+b8_t es_file_append(const char *filepath, const char *content) {
+    FILE *stream = fopen(filepath, "ab");
+    if (stream == NULL) {
+        return false;
+    }
+
+    fwrite(content, strlen(content), 1, stream);
+    fclose(stream);
+
+    return true;
+}
+
+char *es_file_read(const char *filepath) {
+    FILE *stream = fopen(filepath, "rb");
+
+    fseek(stream, 0, SEEK_END);
+    usize_t len = ftell(stream);
+    fseek(stream, 0, SEEK_SET);
+    printf("%lu\n", len);
+
+    // Allocate an extra byte for null terminator.
+    char *buffer = es_malloc(len + 1);
+    fread(buffer, len, 1, stream);
+    // Append null terminator.
+    buffer[len] = '\0';
+
+    fclose(stream);
+
+    return buffer;
+}
+
+b8_t es_file_exists(const char *filepath) {
+    FILE *f = fopen(filepath, "r");
+    return f != NULL;
+}
+
+/*=========================*/
+// Math
+/*=========================*/
+
+m3_t m3_inv(m3_t mat) {
+    // Implementation based on: https://www.mathsisfun.com/algebra/matrix-inverse-minors-cofactors-adjugate.html
+
+    //
+    // I have no idea how or why any of this works. I'm just happy it is.
+    //
+
+    f32_t f[3][3];
+    memcpy(f, &mat, sizeof(m3_t));
+
+    f32_t f00 = f[0][0], f01 = f[0][1], f02 = f[0][2];
+    f32_t f10 = f[1][0], f11 = f[1][1], f12 = f[1][2];
+    f32_t f20 = f[2][0], f21 = f[2][1], f22 = f[2][2];
+
+    // Step 1: Matrix of minors
+    f32_t minor[3][3] = {
+        {m2_det(m2f(f11, f21, f12, f22)), m2_det(m2f(f10, f20, f12, f22)), m2_det(m2f(f10, f20, f11, f21))},
+        {m2_det(m2f(f01, f21, f02, f22)), m2_det(m2f(f00, f20, f02, f22)), m2_det(m2f(f00, f20, f01, f21))},
+        {m2_det(m2f(f01, f11, f02, f12)), m2_det(m2f(f00, f10, f02, f12)), m2_det(m2f(f00, f10, f01, f11))},
+    };
+
+    // Step 2: Matrix of cofactors
+    f32_t cofactor[3][3];
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            cofactor[x][y] = (x + y) % 2 == 0 ? minor[x][y] : -minor[x][y];
+        }
+    }
+
+    // Step 3: Adjugate/adjoint
+    m3_t adj_m;
+    for (u8_t x = 0; x < 3; x++) {
+        for (u8_t y = 0; y < 3; y++) {
+            *((f32_t *) &adj_m + (x + y * 3)) = cofactor[x][y];
+        }
+    }
+
+    // Step 4: Multiply by 1 / determinant
+    f32_t det = f00 * minor[0][0] - f10 * minor[1][0] + f20 * minor[2][0];
+
+    m3_t finished = m3_muls(adj_m, 1.0f / det);
+
+    return finished;
+}
+
+m4_t m4_inv(m4_t mat) {
+    (void) mat;
+
+    f32_t f[4][4];
+    memcpy(f, &mat, sizeof(m4_t));
+
+    // Step 1: Matrix of minors
+    m4_t minor;
+    m3_t det;
+    u8_t det_i = 0;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            for (i8_t i = 0; i < 4; i++) {
+                for (i8_t j = 0; j < 4; j++) {
+                    if (i == x) { continue; }
+                    if (j == y) { continue; }
+                    ((f32_t *) &det)[det_i++] = f[i][j];
+                }
+            }
+            det_i = 0;
+            printf("%d%d\n", x, y);
+            for (u8_t i = 0; i < 3; i++) {
+                for (u8_t j = 0; j < 3; j++) {
+                    printf("%3.f", ((f32_t *) &det)[i + j * 3]);
+                }
+                printf("\n");
+            }
+            printf("%f\n\n", m3_det(det));
+            ((f32_t *) &minor)[x + y * 4] = m3_det(det);
+        }
+    }
+
+    // Step 2: Matrix of cofactors
+    m4_t cofactor;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            ((f32_t *) &cofactor)[x + y * 4] = ((x + y) % 2 == 0) ? ((f32_t *) &minor)[x + y * 4] : -((f32_t *) &minor)[x + y * 4];
+        }
+    }
+
+    // Step 3: Adjugate/adjoint
+    m4_t adj;
+    for (u8_t x = 0; x < 4; x++) {
+        for (u8_t y = 0; y < 4; y++) {
+            ((f32_t *) &adj)[x + y * 4] = ((f32_t *) &cofactor)[y + x * 4];
+        }
+    }
+
+    // Step 4: Multiply by 1 / determinant
+    f32_t mat_det = mat.i.x * minor.i.x - mat.j.x * minor.j.x + mat.k.x * minor.k.x - mat.l.x * minor.l.x;
+
+    m4_t finished = m4_muls(adj, 1.0f / mat_det);
+
+    return finished;
+}
 #endif /*ES_IMPL*/
 #endif // ES_H
