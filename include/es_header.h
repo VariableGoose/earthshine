@@ -537,6 +537,25 @@ ES_INLINE v3_t v3_cross(v3_t a, v3_t b) {
     );
 }
 
+// 4D vector
+typedef struct v4_t { f32_t x, y, z, w; } v4_t;
+
+ES_INLINE v4_t v4(f32_t x, f32_t y, f32_t z, f32_t w) { return (v4_t) {x, y, z, w}; }
+
+ES_INLINE v4_t v4_mul(v4_t a, v4_t b) { return (v4_t) {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w}; }
+ES_INLINE v4_t v4_div(v4_t a, v4_t b) { return (v4_t) {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w}; }
+ES_INLINE v4_t v4_add(v4_t a, v4_t b) { return (v4_t) {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w}; }
+ES_INLINE v4_t v4_sub(v4_t a, v4_t b) { return (v4_t) {a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w}; }
+
+ES_INLINE v4_t v4_muls(v4_t vec, f32_t s) { return (v4_t) {vec.x * s, vec.y * s, vec.z * s, vec.w * s}; }
+ES_INLINE v4_t v4_divs(v4_t vec, f32_t s) { return (v4_t) {vec.x / s, vec.y / s, vec.z / s, vec.w / s}; }
+ES_INLINE v4_t v4_adds(v4_t vec, f32_t s) { return (v4_t) {vec.x + s, vec.y + s, vec.z + s, vec.w + s}; }
+ES_INLINE v4_t v4_subs(v4_t vec, f32_t s) { return (v4_t) {vec.x - s, vec.y - s, vec.z - s, vec.w - s}; }
+
+ES_INLINE f32_t v4_mag(v4_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w); }
+ES_INLINE v4_t  v4_norm(v4_t vec) { return v4_muls(vec, 1.0f / v4_mag(vec)); }
+ES_INLINE f32_t v4_dot(v4_t a, v4_t b) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+
 /*=========================*/
 // Linux
 /*=========================*/
