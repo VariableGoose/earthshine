@@ -406,14 +406,13 @@ b8_t es_file_exists(const char *filepath) {
 }
 
 /*=========================*/
-// Linux
-/*=========================*/
-
-#ifdef ES_OS_LINUX
-
-/*=========================*/
 // Threading
 /*=========================*/
+
+//
+// Linux
+//
+#ifdef ES_OS_LINUX
 
 es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
     typedef void *(*_es_pthread_proc)(void *);
@@ -443,15 +442,10 @@ void es_mutex_unlock(es_mutex_t *mutex) { pthread_mutex_unlock(&mutex->handle); 
 
 #endif // ES_OS_LINUX
 
-/*=========================*/
+//
 // Windows
-/*=========================*/
-
+//
 #ifdef ES_OS_WIN32
-
-/*=========================*/
-// Threading
-/*=========================*/
 
 es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
     typedef usize_t (*_es_win32_thread_proc)(void *);

@@ -40,8 +40,6 @@
 #ifndef ES_H
 #define ES_H
 
-#include <string.h>
-
 /*=========================*/
 // Context cracking
 /*=========================*/
@@ -55,6 +53,26 @@
 #if defined(_WIN32) || defined(CYGWIN)
 #define ES_OS_WIN32
 #endif // _WIN32, CYGWIN
+
+/*=========================*/
+// Includes
+/*=========================*/
+
+#include <string.h>
+
+//
+// OS Specific
+//
+
+// Linux
+#ifdef ES_OS_LINUX
+#include <pthread.h>
+#endif // ES_OS_LINUX
+
+// Windows
+#ifdef ES_OS_WIN32
+#include <windows.h>
+#endif
 
 /*=========================*/
 // API macros
@@ -235,6 +253,11 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 
 // Get stride of a memebr of a struct.
 #define es_offset(S, M) ((usize_t) &(((S *) 0)->M))
+
+#define es_max(A, B) ((A) > (B) ? (A) : (B))
+#define es_min(A, B) ((A) < (B) ? (A) : (B))
+#define es_clamp(V, MIN, MAX) ((V) < (MIN) ? (MIN) : (V) > (MAX) ? (MAX) : (V))
+#define es_lerp(A, B, T) ((A) + ((B) - (A)) * (T))
 
 #ifndef ES_SIPHASH_C_ROUNDS
 #define ES_SIPHASH_C_ROUNDS 1
@@ -453,10 +476,17 @@ ES_API void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry
 /*=========================*/
 // Threading
 /*=========================*/
-
 typedef void (*es_thread_proc_t)(void *arg);
 typedef usize_t es_thread_t;
-typedef struct es_mutex_t es_mutex_t;
+typedef struct es_mutex_t {
+#ifdef ES_OS_LINUX
+    pthread_mutex_t handle;
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+    HANDLE handle;
+#endif // ES_OS_WIN32
+
+} es_mutex_t;
 
 ES_API es_thread_t es_thread(es_thread_proc_t proc, void *arg);
 ES_API es_thread_t es_thread_get_self(void);
@@ -475,42 +505,6 @@ ES_API b8_t es_file_write(const char *filepath, const char *content);
 ES_API b8_t es_file_append(const char *filepath, const char *content);
 ES_API char *es_file_read(const char *filepath);
 ES_API b8_t es_file_exists(const char *filepath);
-
-/*=========================*/
-// Linux
-/*=========================*/
-
-#ifdef ES_OS_LINUX
-
-/*=========================*/
-// Threading
-/*=========================*/
-
-#include <pthread.h>
-
-struct es_mutex_t {
-    pthread_mutex_t handle;
-};
-
-#endif // ES_OS_LINUX
-
-/*=========================*/
-// Windows
-/*=========================*/
-
-#ifdef ES_OS_WIN32
-
-/*=========================*/
-// Threading
-/*=========================*/
-
-#include <windows.h>
-
-struct es_mutex_t {
-    HANDLE handle;
-};
-
-#endif // ES_OS_WIN32
 
 /*=========================*/
 // Implementation
@@ -923,14 +917,13 @@ b8_t es_file_exists(const char *filepath) {
 }
 
 /*=========================*/
-// Linux
-/*=========================*/
-
-#ifdef ES_OS_LINUX
-
-/*=========================*/
 // Threading
 /*=========================*/
+
+//
+// Linux
+//
+#ifdef ES_OS_LINUX
 
 es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
     typedef void *(*_es_pthread_proc)(void *);
@@ -960,15 +953,10 @@ void es_mutex_unlock(es_mutex_t *mutex) { pthread_mutex_unlock(&mutex->handle); 
 
 #endif // ES_OS_LINUX
 
-/*=========================*/
+//
 // Windows
-/*=========================*/
-
+//
 #ifdef ES_OS_WIN32
-
-/*=========================*/
-// Threading
-/*=========================*/
 
 es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
     typedef usize_t (*_es_win32_thread_proc)(void *);
