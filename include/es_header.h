@@ -495,6 +495,7 @@ ES_API b8_t es_file_exists(const char *filepath);
 typedef struct v2_t { f32_t x, y; } v2_t;
 
 ES_INLINE v2_t v2(f32_t x, f32_t y) { return (v2_t) {x, y}; }
+ES_INLINE v2_t v2s(f32_t scaler) { return (v2_t) {scaler, scaler}; }
 
 ES_INLINE v2_t v2_mul(v2_t a, v2_t b) { return (v2_t) {a.x * b.x, a.y * b.y}; }
 ES_INLINE v2_t v2_div(v2_t a, v2_t b) { return (v2_t) {a.x / b.x, a.y / b.y}; }
@@ -515,6 +516,7 @@ ES_INLINE f32_t v2_cross(v2_t a, v2_t b) { return a.x*b.y - a.y*b.x; }
 typedef struct v3_t { f32_t x, y, z; } v3_t;
 
 ES_INLINE v3_t v3(f32_t x, f32_t y, f32_t z) { return (v3_t) {x, y, z}; }
+ES_INLINE v3_t v3s(f32_t scaler) { return (v3_t) {scaler, scaler, scaler}; }
 
 ES_INLINE v3_t v3_mul(v3_t a, v3_t b) { return (v3_t) {a.x * b.x, a.y * b.y, a.z * b.z}; }
 ES_INLINE v3_t v3_div(v3_t a, v3_t b) { return (v3_t) {a.x / b.x, a.y / b.y, a.z / b.z}; }
@@ -541,6 +543,7 @@ ES_INLINE v3_t v3_cross(v3_t a, v3_t b) {
 typedef struct v4_t { f32_t x, y, z, w; } v4_t;
 
 ES_INLINE v4_t v4(f32_t x, f32_t y, f32_t z, f32_t w) { return (v4_t) {x, y, z, w}; }
+ES_INLINE v4_t v4s(f32_t scaler) { return (v4_t) {scaler, scaler, scaler, scaler}; }
 
 ES_INLINE v4_t v4_mul(v4_t a, v4_t b) { return (v4_t) {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w}; }
 ES_INLINE v4_t v4_div(v4_t a, v4_t b) { return (v4_t) {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w}; }
@@ -555,6 +558,18 @@ ES_INLINE v4_t v4_subs(v4_t vec, f32_t s) { return (v4_t) {vec.x - s, vec.y - s,
 ES_INLINE f32_t v4_mag(v4_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w); }
 ES_INLINE v4_t  v4_norm(v4_t vec) { return v4_muls(vec, 1.0f / v4_mag(vec)); }
 ES_INLINE f32_t v4_dot(v4_t a, v4_t b) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+
+// 2x2 matrix
+typedef struct m2_t { v2_t i, j; } m2_t;
+
+ES_INLINE m2_t m2v(v2_t i, v2_t j) { return (m2_t) {i, j}; }
+ES_INLINE m2_t m2f(f32_t ix, f32_t iy, f32_t jx, f32_t jy) { return (m2_t) {{ix, iy}, {jx, jy}}; }
+ES_INLINE m2_t m2_identity(void) { return (m2_t) {{1, 0}, {0, 1}}; }
+ES_INLINE m2_t m2_muls(m2_t mat, f32_t s) { return (m2_t) {v2_muls(mat.i, s), v2_muls(mat.j, s)}; }
+ES_INLINE v2_t m2_mulv(m2_t mat, v2_t vec) { return v2_add(v2_muls(mat.i, vec.x), v2_muls(mat.j, vec.y)); }
+ES_INLINE m2_t m2_mul(m2_t a, m2_t b) { return (m2_t) { m2_mulv(b, a.i), m2_mulv(b, a.j) }; }
+ES_INLINE m2_t m2_inv(m2_t mat) { return m2_muls((m2_t) {{mat.j.y, -mat.i.y}, {-mat.j.x, mat.i.x}}, 0.1f); }
+ES_INLINE f32_t m2_det(m2_t mat) { return mat.i.x * mat.j.y - mat.i.y * mat.j.x; }
 
 /*=========================*/
 // Linux
