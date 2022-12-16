@@ -1,14 +1,14 @@
 #include "es_header.h"
 
 i32_t main(void) {
-    m4_t m = m4f(
+    mat4_t m = mat4f(
          1,  1,  1, -1,
          1,  1, -1,  1,
          1, -1,  1,  1,
         -1,  1,  1,  1
     );
-    m4_t inv = m4_inv(m);
-    m4_t res = m4_mul(m, inv);
+    mat4_t inv = mat4_inverse(m);
+    mat4_t res = mat4_mul(m, inv);
     f32_t *f = (f32_t *) &res;
 
     for (u8_t x = 0; x < 4; x++) {

@@ -240,20 +240,20 @@ usize_t es_hash_str(const char *str) {
 // This is also stolen. I'm not smart enough to understand this.
 usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
     const u8_t *d = p;
-    usize_t v0, v1, v2, v3, data;
+    usize_t v0, v1, vec2, vec3, data;
 
     v0 = ((((usize_t) 0x736f6d65 << 16) << 16) + 0x70736575) ^  seed;
     v1 = ((((usize_t) 0x646f7261 << 16) << 16) + 0x6e646f6d) ^ ~seed;
-    v2 = ((((usize_t) 0x6c796765 << 16) << 16) + 0x6e657261) ^  seed;
-    v3 = ((((usize_t) 0x74656462 << 16) << 16) + 0x79746573) ^ ~seed;
+    vec2 = ((((usize_t) 0x6c796765 << 16) << 16) + 0x6e657261) ^  seed;
+    vec3 = ((((usize_t) 0x74656462 << 16) << 16) + 0x79746573) ^ ~seed;
 
     // Rotate left.
     #define es_siprotl(val, n) (((val) << (n) | ((val) >> (sizeof(usize_t) * 8 - (n)))))
     #define es_sipround() do {\
         v0 += v1; v1 = es_siprotl(v1, 13); v1 ^= v0; v0 = es_siprotl(v0, sizeof(usize_t) * 4); \
-        v2 += v3; v3 = es_siprotl(v3, 16); v3 ^= v2; \
-        v2 += v1; v1 = es_siprotl(v1, 17); v1 ^= v2; v2 = es_siprotl(v2, sizeof(usize_t) * 4); \
-        v0 += v3; v3 = es_siprotl(v3, 21); v3 ^= v0; \
+        vec2 += vec3; vec3 = es_siprotl(vec3, 16); vec3 ^= vec2; \
+        vec2 += v1; v1 = es_siprotl(v1, 17); v1 ^= vec2; vec2 = es_siprotl(vec2, sizeof(usize_t) * 4); \
+        v0 += vec3; vec3 = es_siprotl(vec3, 21); vec3 ^= v0; \
     } while (0)
 
     usize_t i;
@@ -261,7 +261,7 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
         data = d[0] | (d[1] << 8) | (d[2] << 16) | (d[3] << 24);
         data |= (usize_t) (d[4] | (d[5] << 8) | (d[6] << 16) | (d[7] << 24)) << 16 << 16;
 
-        v3 ^= data;
+        vec3 ^= data;
         for (usize_t j = 0; j < ES_SIPHASH_C_ROUNDS; j++) {
             es_sipround();
         }
@@ -278,17 +278,17 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
         case 1: data |= d[0]; // fallthrough
         case 0: break;
     }
-    v3 ^= data;
+    vec3 ^= data;
     for (i = 0; i < ES_SIPHASH_C_ROUNDS; i++) {
         es_sipround();
     }
     v0 ^= data;
-    v2 ^= 0xff;
+    vec2 ^= 0xff;
     for (i = 0; i < ES_SIPHASH_D_ROUNDS; i++) {
         es_sipround();
     }
 
-    return v0^v1^v2^v3;
+    return v0^v1^vec2^vec3;
     #undef es_siprotl
     #undef es_sipround
 }
@@ -490,7 +490,7 @@ b8_t es_file_exists(const char *filepath) {
 // Math
 /*=========================*/
 
-m3_t m3_inv(m3_t mat) {
+mat3_t mat3_inverse(mat3_t mat) {
     // Implementation based on: https://www.mathsisfun.com/algebra/matrix-inverse-minors-cofactors-adjugate.html
 
     //
@@ -498,7 +498,7 @@ m3_t m3_inv(m3_t mat) {
     //
 
     f32_t f[3][3];
-    memcpy(f, &mat, sizeof(m3_t));
+    memcpy(f, &mat, sizeof(mat3_t));
 
     f32_t f00 = f[0][0], f01 = f[0][1], f02 = f[0][2];
     f32_t f10 = f[1][0], f11 = f[1][1], f12 = f[1][2];
@@ -506,9 +506,9 @@ m3_t m3_inv(m3_t mat) {
 
     // Step 1: Matrix of minors
     f32_t minor[3][3] = {
-        {m2_det(m2f(f11, f21, f12, f22)), m2_det(m2f(f10, f20, f12, f22)), m2_det(m2f(f10, f20, f11, f21))},
-        {m2_det(m2f(f01, f21, f02, f22)), m2_det(m2f(f00, f20, f02, f22)), m2_det(m2f(f00, f20, f01, f21))},
-        {m2_det(m2f(f01, f11, f02, f12)), m2_det(m2f(f00, f10, f02, f12)), m2_det(m2f(f00, f10, f01, f11))},
+        {mat2_determinate(mat2f(f11, f21, f12, f22)), mat2_determinate(mat2f(f10, f20, f12, f22)), mat2_determinate(mat2f(f10, f20, f11, f21))},
+        {mat2_determinate(mat2f(f01, f21, f02, f22)), mat2_determinate(mat2f(f00, f20, f02, f22)), mat2_determinate(mat2f(f00, f20, f01, f21))},
+        {mat2_determinate(mat2f(f01, f11, f02, f12)), mat2_determinate(mat2f(f00, f10, f02, f12)), mat2_determinate(mat2f(f00, f10, f01, f11))},
     };
 
     // Step 2: Matrix of cofactors
@@ -520,7 +520,7 @@ m3_t m3_inv(m3_t mat) {
     }
 
     // Step 3: Adjugate/adjoint
-    m3_t adj_m;
+    mat3_t adj_m;
     for (u8_t x = 0; x < 3; x++) {
         for (u8_t y = 0; y < 3; y++) {
             *((f32_t *) &adj_m + (x + y * 3)) = cofactor[x][y];
@@ -530,20 +530,18 @@ m3_t m3_inv(m3_t mat) {
     // Step 4: Multiply by 1 / determinant
     f32_t det = f00 * minor[0][0] - f10 * minor[1][0] + f20 * minor[2][0];
 
-    m3_t finished = m3_muls(adj_m, 1.0f / det);
+    mat3_t finished = mat3_muls(adj_m, 1.0f / det);
 
     return finished;
 }
 
-m4_t m4_inv(m4_t mat) {
-    (void) mat;
-
+mat4_t mat4_inverse(mat4_t mat) {
     f32_t f[4][4];
-    memcpy(f, &mat, sizeof(m4_t));
+    memcpy(f, &mat, sizeof(mat4_t));
 
     // Step 1: Matrix of minors
-    m4_t minor;
-    m3_t det;
+    mat4_t minor;
+    mat3_t det;
     u8_t det_i = 0;
     for (u8_t x = 0; x < 4; x++) {
         for (u8_t y = 0; y < 4; y++) {
@@ -555,12 +553,12 @@ m4_t m4_inv(m4_t mat) {
                 }
             }
             det_i = 0;
-            ((f32_t *) &minor)[x + y * 4] = m3_det(det);
+            ((f32_t *) &minor)[x + y * 4] = mat3_determinate(det);
         }
     }
 
     // Step 2: Matrix of cofactors
-    m4_t cofactor;
+    mat4_t cofactor;
     for (u8_t x = 0; x < 4; x++) {
         for (u8_t y = 0; y < 4; y++) {
             ((f32_t *) &cofactor)[x + y * 4] = ((x + y) % 2 == 0) ? ((f32_t *) &minor)[x + y * 4] : -((f32_t *) &minor)[x + y * 4];
@@ -568,7 +566,7 @@ m4_t m4_inv(m4_t mat) {
     }
 
     // Step 3: Adjugate/adjoint
-    m4_t adj;
+    mat4_t adj;
     for (u8_t x = 0; x < 4; x++) {
         for (u8_t y = 0; y < 4; y++) {
             ((f32_t *) &adj)[x + y * 4] = ((f32_t *) &cofactor)[y + x * 4];
@@ -578,7 +576,7 @@ m4_t m4_inv(m4_t mat) {
     // Step 4: Multiply by 1 / determinant
     f32_t mat_det = mat.i.x * minor.i.x - mat.j.x * minor.j.x + mat.k.x * minor.k.x - mat.l.x * minor.l.x;
 
-    m4_t finished = m4_muls(adj, 1.0f / mat_det);
+    mat4_t finished = mat4_muls(adj, 1.0f / mat_det);
 
     return finished;
 }
