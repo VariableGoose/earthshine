@@ -469,7 +469,6 @@ char *es_file_read(const char *filepath) {
     fseek(stream, 0, SEEK_END);
     usize_t len = ftell(stream);
     fseek(stream, 0, SEEK_SET);
-    printf("%lu\n", len);
 
     // Allocate an extra byte for null terminator.
     char *buffer = es_malloc(len + 1);
@@ -556,14 +555,6 @@ m4_t m4_inv(m4_t mat) {
                 }
             }
             det_i = 0;
-            printf("%d%d\n", x, y);
-            for (u8_t i = 0; i < 3; i++) {
-                for (u8_t j = 0; j < 3; j++) {
-                    printf("%3.f", ((f32_t *) &det)[i + j * 3]);
-                }
-                printf("\n");
-            }
-            printf("%f\n\n", m3_det(det));
             ((f32_t *) &minor)[x + y * 4] = m3_det(det);
         }
     }
