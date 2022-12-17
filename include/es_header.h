@@ -68,6 +68,10 @@
 // Linux
 #ifdef ES_OS_LINUX
 #include <pthread.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/XKBlib.h>
 #endif // ES_OS_LINUX
 
 // Windows
@@ -613,6 +617,30 @@ ES_INLINE mat4_t mat4_muls(mat4_t mat, f32_t s) { return (mat4_t) {vec4_muls(mat
 ES_INLINE vec4_t mat4_mulv(mat4_t mat, vec4_t vec) { return vec4_add(vec4_add(vec4_add(vec4_muls(mat.i, vec.x), vec4_muls(mat.j, vec.y)), vec4_muls(mat.k, vec.z)), vec4_muls(mat.l, vec.w)); }
 ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a.i), mat4_mulv(b, a.j), mat4_mulv(b, a.k), mat4_mulv(b, a.l) }; }
 ES_API mat4_t mat4_inverse(mat4_t mat);
+
+/*=========================*/
+// Windowing
+/*=========================*/
+
+typedef void es_window_t;
+typedef struct _es_window_t {
+#ifdef ES_OS_LINUX
+    Display *display;
+    Window window;
+    b8_t is_open;
+    Atom wm_delete_window;
+    i32_t width;
+    i32_t height;
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+#endif // ES_OS_WIN32
+} _es_window_t;
+
+ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
+ES_API void es_window_free(es_window_t *window);
+ES_API b8_t es_window_is_open(es_window_t *window);
+ES_API void es_window_poll_events(es_window_t *window);
+ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
 
 /*=========================*/
 // Implementation

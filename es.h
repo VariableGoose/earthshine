@@ -68,6 +68,10 @@
 // Linux
 #ifdef ES_OS_LINUX
 #include <pthread.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/XKBlib.h>
 #endif // ES_OS_LINUX
 
 // Windows
@@ -613,6 +617,29 @@ ES_INLINE mat4_t mat4_muls(mat4_t mat, f32_t s) { return (mat4_t) {vec4_muls(mat
 ES_INLINE vec4_t mat4_mulv(mat4_t mat, vec4_t vec) { return vec4_add(vec4_add(vec4_add(vec4_muls(mat.i, vec.x), vec4_muls(mat.j, vec.y)), vec4_muls(mat.k, vec.z)), vec4_muls(mat.l, vec.w)); }
 ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a.i), mat4_mulv(b, a.j), mat4_mulv(b, a.k), mat4_mulv(b, a.l) }; }
 ES_API mat4_t mat4_inverse(mat4_t mat);
+
+/*=========================*/
+// Windowing
+/*=========================*/
+
+typedef void es_window_t;
+typedef struct _es_window_t {
+#ifdef ES_OS_LINUX
+    Display *display;
+    Window window;
+    b8_t is_open;
+    Atom wm_delete_window;
+    i32_t width;
+    i32_t height;
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+#endif // ES_OS_WIN32
+} _es_window_t;
+
+ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
+ES_API void es_window_free(es_window_t *window);
+ES_API b8_t es_window_is_open(es_window_t *window);
+ES_API void es_window_poll_events(es_window_t *window);
 
 /*=========================*/
 // Implementation
@@ -1199,5 +1226,128 @@ mat4_t mat4_inverse(mat4_t mat) {
 
     return finished;
 }
+
+/*=========================*/
+// Windowing
+/*=========================*/
+
+//
+// Linux
+//
+#ifdef ES_OS_LINUX
+es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
+    _es_window_t *window = es_malloc(sizeof(_es_window_t));
+
+    window->is_open = true;
+    window->display = XOpenDisplay(NULL);
+    if (window->display == NULL) {
+        es_free(window);
+        return NULL;
+    }
+
+    i32_t root = DefaultRootWindow(window->display);
+    i32_t screen = DefaultScreen(window->display);
+
+    // Check if display is compatible.
+    i32_t screen_bit_depth = 24;
+    XVisualInfo visinfo = {0};
+    if (!XMatchVisualInfo(window->display, screen, screen_bit_depth, TrueColor, &visinfo)) {
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Configure window attributes.
+    XSetWindowAttributes window_attrs = {0};
+    window_attrs.background_pixel = 0;
+    window_attrs.colormap = XCreateColormap(window->display, root, visinfo.visual, AllocNone);
+    // Events the widnow accepts.
+    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask;
+    usize_t attribute_mask = CWBackPixel | CWColormap | CWEventMask;
+
+    // Create window.
+    window->window = XCreateWindow(window->display, root, 0, 0, width, height, 0, visinfo.depth, InputOutput, visinfo.visual, attribute_mask, &window_attrs);
+    if (!window->window) {
+        XDestroyWindow(window->display, window->window);
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Set title.
+    XStoreName(window->display, window->window, title);
+
+    // Window resizability.
+    if (!resizable) {
+        XSizeHints hints = {0};
+        hints.flags      = PMinSize | PMaxSize;
+        hints.min_width  = window->width;
+        hints.min_height = window->height;
+        hints.max_width  = window->width;
+        hints.max_height = window->height;
+        XSetWMNormalHints(window->display, window->window, &hints);
+    }
+
+    // Show window.
+    XMapWindow(window->display, window->window);
+    // Send all X commands to X-server.
+    XFlush(window->display);
+
+    // Get close command.
+    window->wm_delete_window = XInternAtom(window->display, "WM_DELETE_WINDOW", false);
+    if (!XSetWMProtocols(window->display, window->window, &window->wm_delete_window, true)) {
+        XDestroyWindow(window->display, window->window);
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    return window;
+}
+
+void es_window_free(es_window_t *window) {
+    _es_window_t *_window = window;
+
+    XCloseDisplay(_window->display);
+    es_free(_window);
+}
+
+b8_t es_window_is_open(es_window_t *window) {
+    return ((_es_window_t *) window)->is_open;
+}
+
+void es_window_poll_events(es_window_t *window) {
+    _es_window_t *_window = window;
+    XEvent ev = {0};
+    while (XPending(_window->display)) {
+        XNextEvent(_window->display, &ev);
+        switch (ev.type) {
+            case DestroyNotify: {
+                XDestroyWindowEvent *e = (XDestroyWindowEvent *) &ev;
+                if (e->window == _window->window) {
+                    _window->is_open = false;
+                }
+            } break;
+            case ClientMessage: {
+                XClientMessageEvent *e = (XClientMessageEvent *) &ev;
+                if ((Atom) e->data.l[0] == _window->wm_delete_window) {
+                    XDestroyWindow(_window->display, _window->window);
+                    _window->is_open = false;
+                }
+            } break;
+            case FocusIn:
+            case FocusOut: {
+                // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
+                XFocusChangeEvent *e = (XFocusChangeEvent *) &ev;
+                if (e->type == FocusIn) {
+                    XAutoRepeatOff(_window->display);
+                } else {
+                    XAutoRepeatOn(_window->display);
+                }
+            }
+        }
+    }
+}
+#endif // ES_OS_LINUX
 #endif /*ES_IMPL*/
 #endif // ES_H

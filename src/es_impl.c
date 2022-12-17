@@ -580,3 +580,144 @@ mat4_t mat4_inverse(mat4_t mat) {
 
     return finished;
 }
+
+/*=========================*/
+// Windowing
+/*=========================*/
+
+//
+// Linux
+//
+#ifdef ES_OS_LINUX
+es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
+    _es_window_t *window = es_malloc(sizeof(_es_window_t));
+
+    window->is_open = true;
+    window->width   = width;
+    window->height  = height;
+
+    window->display = XOpenDisplay(NULL);
+    if (window->display == NULL) {
+        es_free(window);
+        return NULL;
+    }
+
+    i32_t root = DefaultRootWindow(window->display);
+    i32_t screen = DefaultScreen(window->display);
+
+    // Check if display is compatible.
+    i32_t screen_bit_depth = 24;
+    XVisualInfo visinfo = {0};
+    if (!XMatchVisualInfo(window->display, screen, screen_bit_depth, TrueColor, &visinfo)) {
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Configure window attributes.
+    XSetWindowAttributes window_attrs = {0};
+    window_attrs.background_pixel = 0;
+    window_attrs.colormap = XCreateColormap(window->display, root, visinfo.visual, AllocNone);
+    // Events the widnow accepts.
+    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask;
+    usize_t attribute_mask = CWBackPixel | CWColormap | CWEventMask;
+
+    // Create window.
+    window->window = XCreateWindow(window->display, root, 0, 0, width, height, 0, visinfo.depth, InputOutput, visinfo.visual, attribute_mask, &window_attrs);
+    if (!window->window) {
+        XDestroyWindow(window->display, window->window);
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Set title.
+    XStoreName(window->display, window->window, title);
+
+    // Window resizability.
+    XSizeHints hints = {0};
+    if (!resizable) {
+        hints.flags      = PMinSize | PMaxSize;
+        hints.min_width  = window->width;
+        hints.min_height = window->height;
+        hints.max_width  = window->width;
+        hints.max_height = window->height;
+        XSetWMNormalHints(window->display, window->window, &hints);
+    }
+
+    // Show window.
+    XMapWindow(window->display, window->window);
+    // Send all X commands to X-server.
+    XFlush(window->display);
+
+    // Get close command.
+    window->wm_delete_window = XInternAtom(window->display, "WM_DELETE_WINDOW", false);
+    if (!XSetWMProtocols(window->display, window->window, &window->wm_delete_window, true)) {
+        XDestroyWindow(window->display, window->window);
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    return window;
+}
+
+void es_window_free(es_window_t *window) {
+    _es_window_t *_window = window;
+
+    XCloseDisplay(_window->display);
+    es_free(_window);
+}
+
+b8_t es_window_is_open(es_window_t *window) {
+    return ((_es_window_t *) window)->is_open;
+}
+
+void es_window_poll_events(es_window_t *window) {
+    _es_window_t *_window = window;
+    XEvent ev = {0};
+    while (XPending(_window->display)) {
+        XNextEvent(_window->display, &ev);
+        switch (ev.type) {
+            case DestroyNotify: {
+                XDestroyWindowEvent *e = (XDestroyWindowEvent *) &ev;
+                if (e->window == _window->window) {
+                    _window->is_open = false;
+                }
+            } break;
+            case ClientMessage: {
+                XClientMessageEvent *e = (XClientMessageEvent *) &ev;
+                if ((Atom) e->data.l[0] == _window->wm_delete_window) {
+                    XDestroyWindow(_window->display, _window->window);
+                    _window->is_open = false;
+                }
+            } break;
+            case FocusIn:
+            case FocusOut: {
+                // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
+                XFocusChangeEvent *e = (XFocusChangeEvent *) &ev;
+                if (e->type == FocusIn) {
+                    XAutoRepeatOff(_window->display);
+                } else {
+                    XAutoRepeatOn(_window->display);
+                }
+            }
+        }
+    }
+}
+
+void es_window_resizable(es_window_t *window, b8_t resizable) {
+    _es_window_t *_window = window;
+
+    // Window resizability.
+    XSizeHints hints = {0};
+    if (!resizable) {
+        hints.flags      = PMinSize | PMaxSize;
+    }
+    hints.min_width  = _window->width;
+    hints.min_height = _window->height;
+    hints.max_width  = _window->width;
+    hints.max_height = _window->height;
+    XSetWMNormalHints(_window->display, _window->window, &hints);
+}
+#endif // ES_OS_LINUX
