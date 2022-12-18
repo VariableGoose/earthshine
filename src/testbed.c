@@ -1,3 +1,4 @@
+#define ES_VULKAN
 #include "es_header.h"
 
 static void resize_callback(es_window_t *window, i32_t width, i32_t height) {

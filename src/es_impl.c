@@ -735,4 +735,26 @@ void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t 
     _es_window_t *_window = window;
     _window->resize_callback = callback;
 }
+
+#ifdef ES_VULKAN
+VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
+    VkSurfaceKHR surface;
+
+    const _es_window_t *_window = window;
+
+    VkXlibSurfaceCreateInfoKHR surface_create_info = {0};
+    surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    surface_create_info.pNext = NULL;
+    surface_create_info.flags = 0;
+    surface_create_info.dpy = _window->display;
+    surface_create_info.window = _window->window;
+
+    VkResult result = vkCreateXlibSurfaceKHR(instance, &surface_create_info, NULL, &surface);
+    if (result != VK_SUCCESS) {
+        return NULL;
+    }
+
+    return surface;
+}
+#endif // ES_VULKAN
 #endif // ES_OS_LINUX

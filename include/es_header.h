@@ -61,6 +61,17 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef ES_VULKAN
+// Define what surface KHR to use.
+#ifdef ES_OS_LINUX
+#define VK_USE_PLATFORM_XLIB_KHR
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif // ES_OS_WIN32
+#include <vulkan/vulkan.h>
+#endif // ES_VULKAN
+
 //
 // OS Specific
 //
@@ -644,6 +655,9 @@ ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
 ES_API void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback);
+#ifdef ES_VULKAN
+ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
+#endif // ES_VULKAN
 
 /*=========================*/
 // Implementation
