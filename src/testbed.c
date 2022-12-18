@@ -7,17 +7,20 @@ static void resize_callback(es_window_t *window, i32_t width, i32_t height) {
 }
 
 i32_t main(void) {
-    es_window_t *window = es_window_init(800, 600, "1", true);
-    es_window_t *window2 = es_window_init(800, 600, "2", true);
-    es_window_callback_resize(window, resize_callback);
+    /* for (u32_t i = 0; i < 24; i++) { */
+    /*     printf("case XK_F%d:\n    return ES_KEY_F%d;\n", i + 1, i + 1); */
+    /* } */
+    printf("%d\n", 1 << 7);
 
-    while (es_window_is_open(window) && es_window_is_open(window2)) {
+    es_window_t *window = es_window_init(800, 600, "1", true);
+    es_window_callback_resize(window, resize_callback);
+    es_window_callback_key(window, key_callback);
+
+    while (es_window_is_open(window)) {
         es_window_poll_events(window);
-        es_window_poll_events(window2);
     }
 
     es_window_free(window);
-    es_window_free(window2);
 
     return 0;
 }

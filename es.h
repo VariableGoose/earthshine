@@ -61,6 +61,17 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef ES_VULKAN
+// Define what surface KHR to use.
+#ifdef ES_OS_LINUX
+#define VK_USE_PLATFORM_XLIB_KHR
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif // ES_OS_WIN32
+#include <vulkan/vulkan.h>
+#endif // ES_VULKAN
+
 //
 // OS Specific
 //
@@ -622,8 +633,116 @@ ES_API mat4_t mat4_inverse(mat4_t mat);
 // Windowing
 /*=========================*/
 
+typedef enum es_key_t {
+    ES_KEY_NULL = -1,
+
+    // Letters
+    ES_KEY_A,
+    ES_KEY_B,
+    ES_KEY_C,
+    ES_KEY_D,
+    ES_KEY_E,
+    ES_KEY_F,
+    ES_KEY_G,
+    ES_KEY_H,
+    ES_KEY_I,
+    ES_KEY_J,
+    ES_KEY_K,
+    ES_KEY_L,
+    ES_KEY_M,
+    ES_KEY_N,
+    ES_KEY_O,
+    ES_KEY_P,
+    ES_KEY_Q,
+    ES_KEY_R,
+    ES_KEY_S,
+    ES_KEY_T,
+    ES_KEY_U,
+    ES_KEY_V,
+    ES_KEY_W,
+    ES_KEY_X,
+    ES_KEY_Y,
+    ES_KEY_Z,
+
+    // Numbers
+    ES_KEY_0,
+    ES_KEY_1,
+    ES_KEY_2,
+    ES_KEY_3,
+    ES_KEY_4,
+    ES_KEY_5,
+    ES_KEY_6,
+    ES_KEY_7,
+    ES_KEY_8,
+    ES_KEY_9,
+
+    // Function keys
+    ES_KEY_F1,
+    ES_KEY_F2,
+    ES_KEY_F3,
+    ES_KEY_F4,
+    ES_KEY_F5,
+    ES_KEY_F6,
+    ES_KEY_F7,
+    ES_KEY_F8,
+    ES_KEY_F9,
+    ES_KEY_F10,
+    ES_KEY_F11,
+    ES_KEY_F12,
+    ES_KEY_F13,
+    ES_KEY_F14,
+    ES_KEY_F15,
+    ES_KEY_F16,
+    ES_KEY_F17,
+    ES_KEY_F18,
+    ES_KEY_F19,
+    ES_KEY_F20,
+    ES_KEY_F21,
+    ES_KEY_F22,
+    ES_KEY_F23,
+    ES_KEY_F24,
+
+    ES_KEY_ESC,
+    ES_KEY_TAB,
+    ES_KEY_ENTER,
+    ES_KEY_SPACE,
+    ES_KEY_BACKSPACE,
+    ES_KEY_CAPS_LOCK,
+
+    // Arrows.
+    ES_KEY_LEFT,
+    ES_KEY_DOWN,
+    ES_KEY_UP,
+    ES_KEY_RIGHT,
+
+    // Mod keys.
+    ES_KEY_SHIFT_L,
+    ES_KEY_SHIFT_R,
+    ES_KEY_CTRL_L,
+    ES_KEY_CTRL_R,
+    ES_KEY_ALT_L,
+    ES_KEY_ALT_R,
+    ES_KEY_SUPER_L,
+    ES_KEY_SUPER_R,
+
+    // Symbols.
+    ES_KEY_EXCLAMATION_MARK,
+    ES_KEY_QUESTION_MARK,
+    ES_KEY_PERIOD,
+    ES_KEY_COMMA,
+    ES_KEY_COLON,
+    ES_KEY_SEMICOLON,
+    ES_KEY_PLUS,
+    ES_KEY_MINUS,
+    ES_KEY_UNDERSCORE,
+    ES_KEY_EQUAL,
+} es_key_t;
+
 typedef void es_window_t;
+
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
+typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod);
+
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
     Display *display;
@@ -636,6 +755,7 @@ typedef struct _es_window_t {
 #ifdef ES_OS_WIN32
 #endif // ES_OS_WIN32
     es_window_resize_callback_t resize_callback;
+    es_window_key_callback_t key_callback;
 } _es_window_t;
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
@@ -643,7 +763,14 @@ ES_API void es_window_free(es_window_t *window);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
-ES_API void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback);
+ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
+ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
+#ifdef ES_VULKAN
+ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
+#endif // ES_VULKAN
+#ifdef ES_OS_LINUX
+ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
+#endif // ES_OS_LINUX
 
 /*=========================*/
 // Implementation
@@ -1352,6 +1479,23 @@ void es_window_poll_events(es_window_t *window) {
                 _window->width = e->width;
                 _window->height = e->height;
             } break;
+
+            case KeyPress:
+            case KeyRelease: {
+                XKeyEvent *e = (XKeyEvent *) &ev;
+                b8_t press = (e->type == KeyPress);
+                if (_window->key_callback) {
+                    es_key_t key = _es_window_translate_keysym(XkbKeycodeToKeysym(_window->display, e->keycode, 0, e->state & ShiftMask));
+                    // Don't call the callback if the key isn't supported.
+                    if (key != -1) {
+                        _window->key_callback(window, key, e->state);
+                    }
+                }
+                if (press) {
+                    printf("%d, %d\n", e->state, _es_window_translate_keysym(XkbKeycodeToKeysym(_window->display, e->keycode, 0, 0)));
+                }
+            } break;
+
             case FocusIn:
             case FocusOut: {
                 // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
@@ -1381,9 +1525,270 @@ void es_window_resizable(es_window_t *window, b8_t resizable) {
     XSetWMNormalHints(_window->display, _window->window, &hints);
 }
 
-void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback) {
+void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback) {
     _es_window_t *_window = window;
     _window->resize_callback = callback;
+}
+
+void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->key_callback = callback;
+}
+
+#ifdef ES_VULKAN
+VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
+    VkSurfaceKHR surface;
+
+    const _es_window_t *_window = window;
+
+    VkXlibSurfaceCreateInfoKHR surface_create_info = {0};
+    surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    surface_create_info.pNext = NULL;
+    surface_create_info.flags = 0;
+    surface_create_info.dpy = _window->display;
+    surface_create_info.window = _window->window;
+
+    VkResult result = vkCreateXlibSurfaceKHR(instance, &surface_create_info, NULL, &surface);
+    if (result != VK_SUCCESS) {
+        return NULL;
+    }
+
+    return surface;
+}
+#endif // ES_VULKAN
+
+es_key_t _es_window_translate_keysym(KeySym keysym) {
+    switch (keysym) {
+        // Letters
+        // Generation code:
+        //     for (u32_t i = 0; i < 26; i++) {
+        //         printf("case XK_%c:\ncase XK_%c:\n    return ES_KEY_%c;\n", 'a' + i, 'A' + i, 'A' + i);
+        //     }
+        case XK_a:
+        case XK_A:
+            return ES_KEY_A;
+        case XK_b:
+        case XK_B:
+            return ES_KEY_B;
+        case XK_c:
+        case XK_C:
+            return ES_KEY_C;
+        case XK_d:
+        case XK_D:
+            return ES_KEY_D;
+        case XK_e:
+        case XK_E:
+            return ES_KEY_E;
+        case XK_f:
+        case XK_F:
+            return ES_KEY_F;
+        case XK_g:
+        case XK_G:
+            return ES_KEY_G;
+        case XK_h:
+        case XK_H:
+            return ES_KEY_H;
+        case XK_i:
+        case XK_I:
+            return ES_KEY_I;
+        case XK_j:
+        case XK_J:
+            return ES_KEY_J;
+        case XK_k:
+        case XK_K:
+            return ES_KEY_K;
+        case XK_l:
+        case XK_L:
+            return ES_KEY_L;
+        case XK_m:
+        case XK_M:
+            return ES_KEY_M;
+        case XK_n:
+        case XK_N:
+            return ES_KEY_N;
+        case XK_o:
+        case XK_O:
+            return ES_KEY_O;
+        case XK_p:
+        case XK_P:
+            return ES_KEY_P;
+        case XK_q:
+        case XK_Q:
+            return ES_KEY_Q;
+        case XK_r:
+        case XK_R:
+            return ES_KEY_R;
+        case XK_s:
+        case XK_S:
+            return ES_KEY_S;
+        case XK_t:
+        case XK_T:
+            return ES_KEY_T;
+        case XK_u:
+        case XK_U:
+            return ES_KEY_U;
+        case XK_v:
+        case XK_V:
+            return ES_KEY_V;
+        case XK_w:
+        case XK_W:
+            return ES_KEY_W;
+        case XK_x:
+        case XK_X:
+            return ES_KEY_X;
+        case XK_y:
+        case XK_Y:
+            return ES_KEY_Y;
+        case XK_z:
+        case XK_Z:
+            return ES_KEY_Z;
+
+        // Numbers
+        // Generation code:
+        //     for (u32_t i = 0; i < 10; i++) {
+        //         printf("case XK_%c:\n    return ES_KEY_%c;\n", '0' + i, '0' + i);
+        //     }
+        case XK_0:
+            return ES_KEY_0;
+        case XK_1:
+            return ES_KEY_1;
+        case XK_2:
+            return ES_KEY_2;
+        case XK_3:
+            return ES_KEY_3;
+        case XK_4:
+            return ES_KEY_4;
+        case XK_5:
+            return ES_KEY_5;
+        case XK_6:
+            return ES_KEY_6;
+        case XK_7:
+            return ES_KEY_7;
+        case XK_8:
+            return ES_KEY_8;
+        case XK_9:
+            return ES_KEY_9;
+
+        // Function keys
+        // Generation code:
+        //     for (u32_t i = 0; i < 24; i++) {
+        //         printf("case XK_F%d:\n    return ES_KEY_F%d;\n", i + 1, i + 1);
+        //     }
+        case XK_F1:
+            return ES_KEY_F1;
+        case XK_F2:
+            return ES_KEY_F2;
+        case XK_F3:
+            return ES_KEY_F3;
+        case XK_F4:
+            return ES_KEY_F4;
+        case XK_F5:
+            return ES_KEY_F5;
+        case XK_F6:
+            return ES_KEY_F6;
+        case XK_F7:
+            return ES_KEY_F7;
+        case XK_F8:
+            return ES_KEY_F8;
+        case XK_F9:
+            return ES_KEY_F9;
+        case XK_F10:
+            return ES_KEY_F10;
+        case XK_F11:
+            return ES_KEY_F11;
+        case XK_F12:
+            return ES_KEY_F12;
+        case XK_F13:
+            return ES_KEY_F13;
+        case XK_F14:
+            return ES_KEY_F14;
+        case XK_F15:
+            return ES_KEY_F15;
+        case XK_F16:
+            return ES_KEY_F16;
+        case XK_F17:
+            return ES_KEY_F17;
+        case XK_F18:
+            return ES_KEY_F18;
+        case XK_F19:
+            return ES_KEY_F19;
+        case XK_F20:
+            return ES_KEY_F20;
+        case XK_F21:
+            return ES_KEY_F21;
+        case XK_F22:
+            return ES_KEY_F22;
+        case XK_F23:
+            return ES_KEY_F23;
+        case XK_F24:
+            return ES_KEY_F24;
+
+        case XK_Escape:
+            return ES_KEY_ESC;
+        case XK_Tab:
+            return ES_KEY_TAB;
+        case XK_Return:
+            return ES_KEY_ENTER;
+        case XK_space:
+            return ES_KEY_SPACE;
+        case XK_BackSpace:
+            return ES_KEY_BACKSPACE;
+        case XK_Caps_Lock:
+            return ES_KEY_CAPS_LOCK;
+
+        case XK_Left:
+            return ES_KEY_LEFT;
+        case XK_Down:
+            return ES_KEY_DOWN;
+        case XK_Up:
+            return ES_KEY_UP;
+        case XK_Right:
+            return ES_KEY_RIGHT;
+
+        // Mod keys.
+        case XK_Shift_L:
+            return ES_KEY_SHIFT_L;
+        case XK_Shift_R:
+            return ES_KEY_SHIFT_R;
+        case XK_Control_L:
+            return ES_KEY_CTRL_L;
+        case XK_Control_R:
+            return ES_KEY_CTRL_R;
+        case XK_Alt_L:
+            return ES_KEY_ALT_L;
+        case XK_Alt_R:
+            return ES_KEY_ALT_R;
+        case XK_Super_L:
+            return ES_KEY_SUPER_L;
+        case XK_Super_R:
+            return ES_KEY_SUPER_R;
+
+        // Symbols.
+        case XK_exclam:
+            return ES_KEY_EXCLAMATION_MARK;
+        case XK_question:
+            return ES_KEY_QUESTION_MARK;
+        case XK_period:
+            return ES_KEY_PERIOD;
+        case XK_comma:
+            return ES_KEY_COMMA;
+        case XK_colon:
+            return ES_KEY_COLON;
+        case XK_semicolon:
+            return ES_KEY_SEMICOLON;
+        case XK_plus:
+            return ES_KEY_PLUS;
+        case XK_minus:
+            return ES_KEY_MINUS;
+        case XK_underscore:
+            return ES_KEY_UNDERSCORE;
+        case XK_equal:
+            return ES_KEY_EQUAL;
+
+        default:
+            /* printf("0x%lx\n", keysym); */
+            return ES_KEY_NULL;
+    }
 }
 #endif // ES_OS_LINUX
 #endif /*ES_IMPL*/

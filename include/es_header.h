@@ -633,8 +633,116 @@ ES_API mat4_t mat4_inverse(mat4_t mat);
 // Windowing
 /*=========================*/
 
+typedef enum es_key_t {
+    ES_KEY_NULL = -1,
+
+    // Letters
+    ES_KEY_A,
+    ES_KEY_B,
+    ES_KEY_C,
+    ES_KEY_D,
+    ES_KEY_E,
+    ES_KEY_F,
+    ES_KEY_G,
+    ES_KEY_H,
+    ES_KEY_I,
+    ES_KEY_J,
+    ES_KEY_K,
+    ES_KEY_L,
+    ES_KEY_M,
+    ES_KEY_N,
+    ES_KEY_O,
+    ES_KEY_P,
+    ES_KEY_Q,
+    ES_KEY_R,
+    ES_KEY_S,
+    ES_KEY_T,
+    ES_KEY_U,
+    ES_KEY_V,
+    ES_KEY_W,
+    ES_KEY_X,
+    ES_KEY_Y,
+    ES_KEY_Z,
+
+    // Numbers
+    ES_KEY_0,
+    ES_KEY_1,
+    ES_KEY_2,
+    ES_KEY_3,
+    ES_KEY_4,
+    ES_KEY_5,
+    ES_KEY_6,
+    ES_KEY_7,
+    ES_KEY_8,
+    ES_KEY_9,
+
+    // Function keys
+    ES_KEY_F1,
+    ES_KEY_F2,
+    ES_KEY_F3,
+    ES_KEY_F4,
+    ES_KEY_F5,
+    ES_KEY_F6,
+    ES_KEY_F7,
+    ES_KEY_F8,
+    ES_KEY_F9,
+    ES_KEY_F10,
+    ES_KEY_F11,
+    ES_KEY_F12,
+    ES_KEY_F13,
+    ES_KEY_F14,
+    ES_KEY_F15,
+    ES_KEY_F16,
+    ES_KEY_F17,
+    ES_KEY_F18,
+    ES_KEY_F19,
+    ES_KEY_F20,
+    ES_KEY_F21,
+    ES_KEY_F22,
+    ES_KEY_F23,
+    ES_KEY_F24,
+
+    ES_KEY_ESC,
+    ES_KEY_TAB,
+    ES_KEY_ENTER,
+    ES_KEY_SPACE,
+    ES_KEY_BACKSPACE,
+    ES_KEY_CAPS_LOCK,
+
+    // Arrows.
+    ES_KEY_LEFT,
+    ES_KEY_DOWN,
+    ES_KEY_UP,
+    ES_KEY_RIGHT,
+
+    // Mod keys.
+    ES_KEY_SHIFT_L,
+    ES_KEY_SHIFT_R,
+    ES_KEY_CTRL_L,
+    ES_KEY_CTRL_R,
+    ES_KEY_ALT_L,
+    ES_KEY_ALT_R,
+    ES_KEY_SUPER_L,
+    ES_KEY_SUPER_R,
+
+    // Symbols.
+    ES_KEY_EXCLAMATION_MARK,
+    ES_KEY_QUESTION_MARK,
+    ES_KEY_PERIOD,
+    ES_KEY_COMMA,
+    ES_KEY_COLON,
+    ES_KEY_SEMICOLON,
+    ES_KEY_PLUS,
+    ES_KEY_MINUS,
+    ES_KEY_UNDERSCORE,
+    ES_KEY_EQUAL,
+} es_key_t;
+
 typedef void es_window_t;
+
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
+typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod);
+
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
     Display *display;
@@ -647,6 +755,7 @@ typedef struct _es_window_t {
 #ifdef ES_OS_WIN32
 #endif // ES_OS_WIN32
     es_window_resize_callback_t resize_callback;
+    es_window_key_callback_t key_callback;
 } _es_window_t;
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
@@ -654,10 +763,14 @@ ES_API void es_window_free(es_window_t *window);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
-ES_API void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback);
+ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
+ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
 #ifdef ES_VULKAN
 ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
 #endif // ES_VULKAN
+#ifdef ES_OS_LINUX
+ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
+#endif // ES_OS_LINUX
 
 /*=========================*/
 // Implementation
