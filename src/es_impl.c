@@ -692,6 +692,16 @@ void es_window_poll_events(es_window_t *window) {
                     _window->is_open = false;
                 }
             } break;
+            case ConfigureNotify: {
+                XConfigureEvent *e = (XConfigureEvent *) &ev;
+                if (_window->width != e->width || _window->height != e->height) {
+                    if (_window->resize_callback) {
+                        _window->resize_callback(window, e->width, e->height);
+                    }
+                }
+                _window->width = e->width;
+                _window->height = e->height;
+            } break;
             case FocusIn:
             case FocusOut: {
                 // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
@@ -719,5 +729,10 @@ void es_window_resizable(es_window_t *window, b8_t resizable) {
     hints.max_width  = _window->width;
     hints.max_height = _window->height;
     XSetWMNormalHints(_window->display, _window->window, &hints);
+}
+
+void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->resize_callback = callback;
 }
 #endif // ES_OS_LINUX

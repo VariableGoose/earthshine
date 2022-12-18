@@ -623,6 +623,7 @@ ES_API mat4_t mat4_inverse(mat4_t mat);
 /*=========================*/
 
 typedef void es_window_t;
+typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
     Display *display;
@@ -634,12 +635,15 @@ typedef struct _es_window_t {
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
 #endif // ES_OS_WIN32
+    es_window_resize_callback_t resize_callback;
 } _es_window_t;
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
 ES_API void es_window_free(es_window_t *window);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
+ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
+ES_API void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback);
 
 /*=========================*/
 // Implementation
@@ -1239,6 +1243,9 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     _es_window_t *window = es_malloc(sizeof(_es_window_t));
 
     window->is_open = true;
+    window->width   = width;
+    window->height  = height;
+
     window->display = XOpenDisplay(NULL);
     if (window->display == NULL) {
         es_free(window);
@@ -1278,8 +1285,8 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     XStoreName(window->display, window->window, title);
 
     // Window resizability.
+    XSizeHints hints = {0};
     if (!resizable) {
-        XSizeHints hints = {0};
         hints.flags      = PMinSize | PMaxSize;
         hints.min_width  = window->width;
         hints.min_height = window->height;
@@ -1335,6 +1342,16 @@ void es_window_poll_events(es_window_t *window) {
                     _window->is_open = false;
                 }
             } break;
+            case ConfigureNotify: {
+                XConfigureEvent *e = (XConfigureEvent *) &ev;
+                if (_window->width != e->width || _window->height != e->height) {
+                    if (_window->resize_callback) {
+                        _window->resize_callback(window, e->width, e->height);
+                    }
+                }
+                _window->width = e->width;
+                _window->height = e->height;
+            } break;
             case FocusIn:
             case FocusOut: {
                 // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
@@ -1347,6 +1364,26 @@ void es_window_poll_events(es_window_t *window) {
             }
         }
     }
+}
+
+void es_window_resizable(es_window_t *window, b8_t resizable) {
+    _es_window_t *_window = window;
+
+    // Window resizability.
+    XSizeHints hints = {0};
+    if (!resizable) {
+        hints.flags      = PMinSize | PMaxSize;
+    }
+    hints.min_width  = _window->width;
+    hints.min_height = _window->height;
+    hints.max_width  = _window->width;
+    hints.max_height = _window->height;
+    XSetWMNormalHints(_window->display, _window->window, &hints);
+}
+
+void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->resize_callback = callback;
 }
 #endif // ES_OS_LINUX
 #endif /*ES_IMPL*/

@@ -623,6 +623,7 @@ ES_API mat4_t mat4_inverse(mat4_t mat);
 /*=========================*/
 
 typedef void es_window_t;
+typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
     Display *display;
@@ -634,6 +635,7 @@ typedef struct _es_window_t {
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
 #endif // ES_OS_WIN32
+    es_window_resize_callback_t resize_callback;
 } _es_window_t;
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
@@ -641,6 +643,7 @@ ES_API void es_window_free(es_window_t *window);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
+ES_API void es_window_callback_resize(es_window_t *window, es_window_resize_callback_t callback);
 
 /*=========================*/
 // Implementation
