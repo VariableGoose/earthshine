@@ -726,22 +726,54 @@ typedef enum es_key_t {
     ES_KEY_SUPER_R,
 
     // Symbols.
-    ES_KEY_EXCLAMATION_MARK,
-    ES_KEY_QUESTION_MARK,
-    ES_KEY_PERIOD,
-    ES_KEY_COMMA,
-    ES_KEY_COLON,
-    ES_KEY_SEMICOLON,
-    ES_KEY_PLUS,
-    ES_KEY_MINUS,
-    ES_KEY_UNDERSCORE,
-    ES_KEY_EQUAL,
+    ES_KEY_EXCLAMATION_MARK, // !
+    ES_KEY_QUESTION_MARK,    // ?
+    ES_KEY_PERIOD,           // .
+    ES_KEY_COMMA,            // ,
+    ES_KEY_COLON,            // :
+    ES_KEY_SEMICOLON,        // ;
+    ES_KEY_PLUS,             // +
+    ES_KEY_MINUS,            // -
+    ES_KEY_UNDERSCORE,       // _
+    ES_KEY_EQUAL,            // =
+    ES_KEY_BRACKET_L,        // [
+    ES_KEY_BRACKET_R,        // ]
+    ES_KEY_BRACE_L,          // {
+    ES_KEY_BRACE_R,          // }
+    ES_KEY_PAREN_L,          // ( 
+    ES_KEY_PAREN_R,          // )
+    ES_KEY_TILDE,            // ~
+    ES_KEY_SECTION,          // §
+    ES_KEY_ACUTE,            // ´
+    ES_KEY_APOSTROPHE,       // '
+    ES_KEY_ASTERISK,         // *
+    ES_KEY_GREATER,          // >
+    ES_KEY_LESS,             // <
+    ES_KEY_QUOTE,            // "
+    ES_KEY_HASHTAG,          // #
+    ES_KEY_CURRENCY,         // ¤
+    ES_KEY_PERCENT,          // %
+    ES_KEY_AND,              // &
+    ES_KEY_SLASH,            // /
+    ES_KEY_PIPE,             // |
+    ES_KEY_AT,               // @
+    ES_KEY_DOLLAR,           // $
+    ES_KEY_BACKSLASH,        /* \ */
+    ES_KEY_GRAVE,            // `
+    ES_KEY_CIRCUM,           // ^
+
+    ES_KEY_COUNT,
 } es_key_t;
 
+typedef enum es_key_action_t {
+    ES_KEY_ACTION_RELEASE,
+    ES_KEY_ACTION_PRESS,
+    ES_KEY_ACTION_REPEAT,
+} es_key_action_t;
 typedef void es_window_t;
 
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
-typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod);
+typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action);
 
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
@@ -751,9 +783,13 @@ typedef struct _es_window_t {
     Atom wm_delete_window;
     i32_t width;
     i32_t height;
+    XIC input_context;
+    XKeyEvent prev_key_event;
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
 #endif // ES_OS_WIN32
+    es_key_action_t keys[ES_KEY_COUNT];
+
     es_window_resize_callback_t resize_callback;
     es_window_key_callback_t key_callback;
 } _es_window_t;
@@ -1436,6 +1472,39 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
         return NULL;
     }
 
+    // Input.
+    XIM xinput_method = XOpenIM(window->display, NULL, NULL, NULL);
+    if (!xinput_method) {
+        printf("Input method could not be opened\n");
+    }
+
+    XIMStyles *styles = NULL;
+    if (XGetIMValues(xinput_method, XNQueryInputStyle, &styles, NULL) || !styles) {
+        printf("Input styles could not be retrieved\n");
+    }
+
+    XIMStyle best_match_style = 0;
+    for (i32_t i = 0; i < styles->count_styles; i++) {
+        XIMStyle style = styles->supported_styles[i];
+        if (style == (XIMPreeditNothing | XIMStatusNothing)) {
+            best_match_style = style;
+            break;
+        }
+    }
+    XFree(styles);
+
+    if (!best_match_style) {
+        printf("No matching input style could be determined\n");
+    }
+
+    window->input_context = XCreateIC(
+        xinput_method,
+        XNInputStyle,   best_match_style,
+        XNClientWindow, window->window,
+        XNFocusWindow,  window->window,
+        NULL
+    );
+
     return window;
 }
 
@@ -1483,16 +1552,28 @@ void es_window_poll_events(es_window_t *window) {
             case KeyPress:
             case KeyRelease: {
                 XKeyEvent *e = (XKeyEvent *) &ev;
-                b8_t press = (e->type == KeyPress);
+                KeySym sym;
+                // Pass symbol because it crashed when pressing åäö without passing it into the function.
+                i32_t symbol = 0;
+                Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
+                es_key_t key = _es_window_translate_keysym(sym);
+
+                // Check what event key action was performed.
+                // NOTE: This is useless since key repeats are off because this doesn't work. A better solution is needed.
+                b8_t is_repeat = (_window->prev_key_event.time == e->time && _window->prev_key_event.keycode == e->keycode);
+                _window->prev_key_event = *e;
+                es_key_action_t action = -1;
+                if (is_repeat) {
+                    action = ES_KEY_ACTION_REPEAT;
+                } else {
+                    action = e->type == KeyPress;
+                }
+
                 if (_window->key_callback) {
-                    es_key_t key = _es_window_translate_keysym(XkbKeycodeToKeysym(_window->display, e->keycode, 0, e->state & ShiftMask));
                     // Don't call the callback if the key isn't supported.
                     if (key != -1) {
-                        _window->key_callback(window, key, e->state);
+                        _window->key_callback(window, key, e->state, action);
                     }
-                }
-                if (press) {
-                    printf("%d, %d\n", e->state, _es_window_translate_keysym(XkbKeycodeToKeysym(_window->display, e->keycode, 0, 0)));
                 }
             } break;
 
@@ -1784,6 +1865,60 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
             return ES_KEY_UNDERSCORE;
         case XK_equal:
             return ES_KEY_EQUAL;
+        case XK_bracketleft:
+            return ES_KEY_BRACKET_L;
+        case XK_bracketright:
+            return ES_KEY_BRACKET_R;
+        case XK_braceleft:
+            return ES_KEY_BRACE_L;
+        case XK_braceright:
+            return ES_KEY_BRACE_R;
+        case XK_parenleft:
+            return ES_KEY_PAREN_L;
+        case XK_parenright:
+            return ES_KEY_PAREN_R;
+        case XK_dead_tilde:
+        case XK_asciitilde:
+            return ES_KEY_TILDE;
+        case XK_section:
+            return ES_KEY_SECTION;
+        case XK_acute:
+        case XK_dead_acute:
+            return ES_KEY_ACUTE;
+        case XK_apostrophe:
+            return ES_KEY_APOSTROPHE;
+        case XK_asterisk:
+            return ES_KEY_ASTERISK;
+        case XK_greater:
+            return ES_KEY_GREATER;
+        case XK_less:
+            return ES_KEY_LESS;
+        case XK_quotedbl:
+            return ES_KEY_QUOTE;
+        case XK_numbersign:
+            return ES_KEY_HASHTAG;
+        case XK_currency:
+            return ES_KEY_CURRENCY;
+        case XK_percent:
+            return ES_KEY_PERCENT;
+        case XK_ampersand:
+            return ES_KEY_AND;
+        case XK_slash:
+            return ES_KEY_SLASH;
+        case XK_bar:
+            return ES_KEY_PIPE;
+        case XK_at:
+            return ES_KEY_AT;
+        case XK_dollar:
+            return ES_KEY_DOLLAR;
+        case XK_backslash:
+            return ES_KEY_BACKSLASH;
+        case XK_dead_grave:
+        case XK_grave:
+            return ES_KEY_GRAVE;
+        case XK_dead_circumflex:
+        case XK_asciicircum:
+            return ES_KEY_CIRCUM;
 
         default:
             /* printf("0x%lx\n", keysym); */

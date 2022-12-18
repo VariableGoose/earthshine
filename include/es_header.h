@@ -726,22 +726,54 @@ typedef enum es_key_t {
     ES_KEY_SUPER_R,
 
     // Symbols.
-    ES_KEY_EXCLAMATION_MARK,
-    ES_KEY_QUESTION_MARK,
-    ES_KEY_PERIOD,
-    ES_KEY_COMMA,
-    ES_KEY_COLON,
-    ES_KEY_SEMICOLON,
-    ES_KEY_PLUS,
-    ES_KEY_MINUS,
-    ES_KEY_UNDERSCORE,
-    ES_KEY_EQUAL,
+    ES_KEY_EXCLAMATION_MARK, // !
+    ES_KEY_QUESTION_MARK,    // ?
+    ES_KEY_PERIOD,           // .
+    ES_KEY_COMMA,            // ,
+    ES_KEY_COLON,            // :
+    ES_KEY_SEMICOLON,        // ;
+    ES_KEY_PLUS,             // +
+    ES_KEY_MINUS,            // -
+    ES_KEY_UNDERSCORE,       // _
+    ES_KEY_EQUAL,            // =
+    ES_KEY_BRACKET_L,        // [
+    ES_KEY_BRACKET_R,        // ]
+    ES_KEY_BRACE_L,          // {
+    ES_KEY_BRACE_R,          // }
+    ES_KEY_PAREN_L,          // ( 
+    ES_KEY_PAREN_R,          // )
+    ES_KEY_TILDE,            // ~
+    ES_KEY_SECTION,          // §
+    ES_KEY_ACUTE,            // ´
+    ES_KEY_APOSTROPHE,       // '
+    ES_KEY_ASTERISK,         // *
+    ES_KEY_GREATER,          // >
+    ES_KEY_LESS,             // <
+    ES_KEY_QUOTE,            // "
+    ES_KEY_HASHTAG,          // #
+    ES_KEY_CURRENCY,         // ¤
+    ES_KEY_PERCENT,          // %
+    ES_KEY_AND,              // &
+    ES_KEY_SLASH,            // /
+    ES_KEY_PIPE,             // |
+    ES_KEY_AT,               // @
+    ES_KEY_DOLLAR,           // $
+    ES_KEY_BACKSLASH,        /* \ */
+    ES_KEY_GRAVE,            // `
+    ES_KEY_CIRCUM,           // ^
+
+    ES_KEY_COUNT,
 } es_key_t;
 
+typedef enum es_key_action_t {
+    ES_KEY_ACTION_RELEASE,
+    ES_KEY_ACTION_PRESS,
+    ES_KEY_ACTION_REPEAT,
+} es_key_action_t;
 typedef void es_window_t;
 
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
-typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod);
+typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action);
 
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
@@ -751,9 +783,13 @@ typedef struct _es_window_t {
     Atom wm_delete_window;
     i32_t width;
     i32_t height;
+    XIC input_context;
+    XKeyEvent prev_key_event;
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
 #endif // ES_OS_WIN32
+    es_key_action_t keys[ES_KEY_COUNT];
+
     es_window_resize_callback_t resize_callback;
     es_window_key_callback_t key_callback;
 } _es_window_t;

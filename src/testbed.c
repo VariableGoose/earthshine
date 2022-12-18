@@ -6,15 +6,17 @@ static void resize_callback(es_window_t *window, i32_t width, i32_t height) {
     printf("%d, %d\n", width, height);
 }
 
-i32_t main(void) {
-    /* for (u32_t i = 0; i < 24; i++) { */
-    /*     printf("case XK_F%d:\n    return ES_KEY_F%d;\n", i + 1, i + 1); */
-    /* } */
-    printf("%d\n", 1 << 7);
+static void key_callback(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action) {
+    (void) window;
+    (void) mod;
+    (void) action;
+    printf("%d: %d\n", action, keycode);
+}
 
+i32_t main(void) {
     es_window_t *window = es_window_init(800, 600, "1", true);
-    es_window_callback_resize(window, resize_callback);
-    es_window_callback_key(window, key_callback);
+    es_window_set_resize_callback(window, resize_callback);
+    es_window_set_key_callback(window, key_callback);
 
     while (es_window_is_open(window)) {
         es_window_poll_events(window);
