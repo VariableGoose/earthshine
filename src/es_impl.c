@@ -24,7 +24,7 @@ void _es_da_init(void **arr, usize_t size) {
     *arr = _es_da_ptr(head);
 }
 
-void _es_da_insert(void **arr, const void *data, usize_t index) {
+void _es_da_insert_impl(void **arr, const void *data, usize_t index) {
     es_assert(arr != NULL, "Can't insert into a NULL array.", NULL);
     es_assert(data != NULL, "Can't insert NULL data into array.", NULL);
 
@@ -296,8 +296,8 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
 #ifdef ES_OS_LINUX
 f64_t es_get_time(void) {
     struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec * 1.0E-3 + t.tv_nsec * 1.0E-6;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+    return (t.tv_sec * 1E9 + t.tv_nsec) * 1E-6;
 }
 
 void es_sleep(usize_t ms) {
@@ -675,8 +675,10 @@ void _es_profile_print(const _es_profile_t *prof, usize_t gen) {
 }
 
 void es_profile_print(void) {
+    printf("========== Profile ==========\n");
     printf("Name: total_time avarage_time run_count\n");
     for (usize_t i = 0; i < es_da_count(_es_root_profile.children); i++) {
         _es_profile_print(&_es_root_profile.children[i], 0);
     }
+    printf("========== End ==========\n");
 }
