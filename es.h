@@ -235,6 +235,9 @@ ES_API usize_t es_da_count(void *arr);
 // Remove array from the end of dynamic array.
 #define es_da_pop_arr(ARR, C, OUT) es_da_remove_arr(ARR, C, es_da_count((ARR)) - (C), OUT)
 
+// Retrieve last item in array.
+#define es_da_last(ARR) (ARR)[es_da_count(ARR) - 1]
+
 /*=========================*/
 // Assert
 /*=========================*/
