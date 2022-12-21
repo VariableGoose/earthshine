@@ -208,7 +208,7 @@ void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t ex
 }
 
 /*=========================*/
-// Hash table
+// Utils
 /*=========================*/
 
 // I just stole this.
@@ -292,6 +292,50 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
     #undef es_siprotl
     #undef es_sipround
 }
+
+#ifdef ES_OS_LINUX
+f64_t es_get_time(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec * 1.0E-3 + t.tv_nsec * 1.0E-6;
+}
+
+void es_sleep(usize_t ms) {
+	struct timespec ts;
+	ts.tv_sec = ms / 1000;
+	ts.tv_nsec = (ms % 1000) * 1000000;
+	nanosleep(&ts, 0);
+}
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+static f32_t _es_clock_freq = 0.0f;
+static LARGE_INTEGER start_time = 0;
+
+f64_t es_get_time(void) {
+    if (_es_clock_freq == 0) {
+        _win32_clock_setup();
+    }
+
+	LARGE_INTEGER now;
+	QueryPerformanceCounter(&now);
+	return (f32_t) now.QuadPart * clock_freq;
+}
+
+void es_sleep(usize_t ms) {
+	Sleep(ms);
+}
+
+void _es_win32_clock_setup(void) {
+	u64_t freq;
+	QueryPerformanceFrequency(&freq);
+	clock_freq = 1.0f / (f32_t) freq;
+	QueryPerformanceCounter(&start_time);
+}
+#endif // ES_OS_WIN32
+
+/*=========================*/
+// Hash table
+/*=========================*/
 
 // Search for wanted entry, if not found, find the first dead entry and return that.
 usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t entry_count, usize_t entry_size, usize_t hash_offset, usize_t state_offset) {
@@ -579,4 +623,60 @@ mat4_t mat4_inverse(mat4_t mat) {
     mat4_t finished = mat4_muls(adj, 1.0f / mat_det);
 
     return finished;
+}
+
+/*=========================*/
+// Profiler
+/*=========================*/
+
+_es_profile_t _es_profile_new(const char *name) {
+    _es_profile_t prof = {
+        .parent = _es_curr_profile,
+        .name = name,
+    };
+    return prof;
+}
+
+void _es_profile_begin(const char *name) {
+    // No binary search because profile order should be preserved.
+    // Shouldn't matter since there shouldn't be a large number or profiles.
+    b8_t registred = false;
+    for (usize_t i = 0; i < es_da_count(_es_curr_profile->children); i++) {
+        // Profile already registered.
+        if (strcmp(_es_curr_profile->children[i].name, name) == 0) {
+            _es_curr_profile = &_es_curr_profile->children[i];
+            registred = true;
+            break;
+        }
+    }
+    // Register a new profile.
+    if (!registred) {
+        es_da_push(_es_curr_profile->children, _es_profile_new(name));
+        _es_curr_profile = &es_da_last(_es_curr_profile->children);
+    }
+
+    _es_curr_profile->t0 = es_get_time();
+    _es_curr_profile->runs++;
+}
+
+void _es_profile_end(void) {
+    _es_curr_profile->time += es_get_time() - _es_curr_profile->t0;
+    _es_curr_profile = _es_curr_profile->parent;
+}
+
+void _es_profile_print(const _es_profile_t *prof, usize_t gen) {
+    for (usize_t i = 0; i < gen; i++) {
+        printf("    ");
+    }
+    printf("%s: %f %f %d\n", prof->name, prof->time, prof->time / prof->runs, prof->runs);
+    for (usize_t i = 0; i < es_da_count(prof->children); i++) {
+        _es_profile_print(&prof->children[i], gen + 1);
+    }
+}
+
+void es_profile_print(void) {
+    printf("Name: total_time avarage_time run_count\n");
+    for (usize_t i = 0; i < es_da_count(_es_root_profile.children); i++) {
+        _es_profile_print(&_es_root_profile.children[i], 0);
+    }
 }

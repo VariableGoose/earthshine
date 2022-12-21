@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.6
+    * Version: 1.7
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -58,8 +58,11 @@
 // Includes
 /*=========================*/
 
+#define _POSIX_C_SOURCE 199309L
+
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 //
 // OS Specific
@@ -270,10 +273,21 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 #define ES_SIPHASH_D_ROUNDS 1
 #endif // ES_SIPHASH_D_ROUNDS
 
+#define _es_macro_concat(A, B) A ## B
+#define es_macro_concat(A, B) _es_macro_concat(A, B)
+#define es_macro_var(NAME) es_macro_concat(_es_macro_variable, es_macro_concat(NAME, __LINE__))
+
 // Hash string.
 ES_API usize_t es_hash_str(const char *str);
 // Hash any data (except string).
 ES_API usize_t es_siphash(const void *data, usize_t len, usize_t seed);
+
+// Get current time in milliseconds.
+ES_API f64_t es_get_time(void);
+// Make system sleep for ms milliseconds.
+ES_API void es_sleep(usize_t ms);
+// Private clock setup function for windows.
+ES_API void _es_win32_clock_setup(void);
 
 /*=========================*/
 // Hash table
@@ -618,6 +632,30 @@ ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a
 ES_API mat4_t mat4_inverse(mat4_t mat);
 
 /*=========================*/
+// Profiler
+/*=========================*/
+
+typedef struct _es_profile_entry_t {
+    es_da(struct _es_profile_entry_t) children;
+    struct _es_profile_entry_t *parent;
+    const char *name;
+    f64_t t0;
+    f64_t time;
+    u32_t runs; 
+} _es_profile_t;
+
+static _es_profile_t _es_root_profile = {0};
+static _es_profile_t *_es_curr_profile = &_es_root_profile;
+
+ES_API _es_profile_t _es_profile_new(const char *name);
+ES_API void _es_profile_begin(const char *name);
+ES_API void _es_profile_end(void);
+ES_API void _es_profile_print(const _es_profile_t *prof, usize_t gen);
+ES_API void es_profile_print(void);
+
+#define es_profile(NAME) for (b8_t es_macro_var(i) = ((void) _es_profile_begin(NAME), false); !es_macro_var(i); es_macro_var(i) = true, (void) _es_profile_end())
+
+/*=========================*/
 // Implementation
 /*=========================*/
 
@@ -830,7 +868,7 @@ void _es_assert_impl(const char *file, u32_t line, const char *expr_str, b8_t ex
 }
 
 /*=========================*/
-// Hash table
+// Utils
 /*=========================*/
 
 // I just stole this.
@@ -914,6 +952,50 @@ usize_t es_siphash(const void *p, usize_t len, usize_t seed) {
     #undef es_siprotl
     #undef es_sipround
 }
+
+#ifdef ES_OS_LINUX
+f64_t es_get_time(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec * 1.0E-3 + t.tv_nsec * 1.0E-6;
+}
+
+void es_sleep(usize_t ms) {
+	struct timespec ts;
+	ts.tv_sec = ms / 1000;
+	ts.tv_nsec = (ms % 1000) * 1000000;
+	nanosleep(&ts, 0);
+}
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+static f32_t _es_clock_freq = 0.0f;
+static LARGE_INTEGER start_time = 0;
+
+f64_t es_get_time(void) {
+    if (_es_clock_freq == 0) {
+        _win32_clock_setup();
+    }
+
+	LARGE_INTEGER now;
+	QueryPerformanceCounter(&now);
+	return (f32_t) now.QuadPart * clock_freq;
+}
+
+void es_sleep(usize_t ms) {
+	Sleep(ms);
+}
+
+void _es_win32_clock_setup(void) {
+	u64_t freq;
+	QueryPerformanceFrequency(&freq);
+	clock_freq = 1.0f / (f32_t) freq;
+	QueryPerformanceCounter(&start_time);
+}
+#endif // ES_OS_WIN32
+
+/*=========================*/
+// Hash table
+/*=========================*/
 
 // Search for wanted entry, if not found, find the first dead entry and return that.
 usize_t _es_hash_table_get_index(usize_t wanted_hash, void **entries, usize_t entry_count, usize_t entry_size, usize_t hash_offset, usize_t state_offset) {
@@ -1201,6 +1283,62 @@ mat4_t mat4_inverse(mat4_t mat) {
     mat4_t finished = mat4_muls(adj, 1.0f / mat_det);
 
     return finished;
+}
+
+/*=========================*/
+// Profiler
+/*=========================*/
+
+_es_profile_t _es_profile_new(const char *name) {
+    _es_profile_t prof = {
+        .parent = _es_curr_profile,
+        .name = name,
+    };
+    return prof;
+}
+
+void _es_profile_begin(const char *name) {
+    // No binary search because profile order should be preserved.
+    // Shouldn't matter since there shouldn't be a large number or profiles.
+    b8_t registred = false;
+    for (usize_t i = 0; i < es_da_count(_es_curr_profile->children); i++) {
+        // Profile already registered.
+        if (strcmp(_es_curr_profile->children[i].name, name) == 0) {
+            _es_curr_profile = &_es_curr_profile->children[i];
+            registred = true;
+            break;
+        }
+    }
+    // Register a new profile.
+    if (!registred) {
+        es_da_push(_es_curr_profile->children, _es_profile_new(name));
+        _es_curr_profile = &es_da_last(_es_curr_profile->children);
+    }
+
+    _es_curr_profile->t0 = es_get_time();
+    _es_curr_profile->runs++;
+}
+
+void _es_profile_end(void) {
+    _es_curr_profile->time += es_get_time() - _es_curr_profile->t0;
+    _es_curr_profile = _es_curr_profile->parent;
+}
+
+void _es_profile_print(const _es_profile_t *prof, usize_t gen) {
+    for (usize_t i = 0; i < gen; i++) {
+        printf("    ");
+    }
+    printf("%s: %f %f %d\n", prof->name, prof->time, prof->time / prof->runs, prof->runs);
+    for (usize_t i = 0; i < es_da_count(prof->children); i++) {
+        _es_profile_print(&prof->children[i], gen + 1);
+    }
+}
+
+void es_profile_print(void) {
+    printf("Name: total_time avarage_time run_count\n");
+    for (usize_t i = 0; i < es_da_count(_es_root_profile.children); i++) {
+        _es_profile_print(&_es_root_profile.children[i], 0);
+    }
 }
 #endif /*ES_IMPL*/
 #endif // ES_H

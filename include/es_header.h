@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.6
+    * Version: 1.7
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -58,8 +58,11 @@
 // Includes
 /*=========================*/
 
+#define _POSIX_C_SOURCE 199309L
+
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 //
 // OS Specific
@@ -270,10 +273,21 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 #define ES_SIPHASH_D_ROUNDS 1
 #endif // ES_SIPHASH_D_ROUNDS
 
+#define _es_macro_concat(A, B) A ## B
+#define es_macro_concat(A, B) _es_macro_concat(A, B)
+#define es_macro_var(NAME) es_macro_concat(_es_macro_variable, es_macro_concat(NAME, __LINE__))
+
 // Hash string.
 ES_API usize_t es_hash_str(const char *str);
 // Hash any data (except string).
 ES_API usize_t es_siphash(const void *data, usize_t len, usize_t seed);
+
+// Get current time in milliseconds.
+ES_API f64_t es_get_time(void);
+// Make system sleep for ms milliseconds.
+ES_API void es_sleep(usize_t ms);
+// Private clock setup function for windows.
+ES_API void _es_win32_clock_setup(void);
 
 /*=========================*/
 // Hash table
@@ -616,6 +630,30 @@ ES_INLINE mat4_t mat4_muls(mat4_t mat, f32_t s) { return (mat4_t) {vec4_muls(mat
 ES_INLINE vec4_t mat4_mulv(mat4_t mat, vec4_t vec) { return vec4_add(vec4_add(vec4_add(vec4_muls(mat.i, vec.x), vec4_muls(mat.j, vec.y)), vec4_muls(mat.k, vec.z)), vec4_muls(mat.l, vec.w)); }
 ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a.i), mat4_mulv(b, a.j), mat4_mulv(b, a.k), mat4_mulv(b, a.l) }; }
 ES_API mat4_t mat4_inverse(mat4_t mat);
+
+/*=========================*/
+// Profiler
+/*=========================*/
+
+typedef struct _es_profile_entry_t {
+    es_da(struct _es_profile_entry_t) children;
+    struct _es_profile_entry_t *parent;
+    const char *name;
+    f64_t t0;
+    f64_t time;
+    u32_t runs; 
+} _es_profile_t;
+
+static _es_profile_t _es_root_profile = {0};
+static _es_profile_t *_es_curr_profile = &_es_root_profile;
+
+ES_API _es_profile_t _es_profile_new(const char *name);
+ES_API void _es_profile_begin(const char *name);
+ES_API void _es_profile_end(void);
+ES_API void _es_profile_print(const _es_profile_t *prof, usize_t gen);
+ES_API void es_profile_print(void);
+
+#define es_profile(NAME) for (b8_t es_macro_var(i) = ((void) _es_profile_begin(NAME), false); !es_macro_var(i); es_macro_var(i) = true, (void) _es_profile_end())
 
 /*=========================*/
 // Implementation
