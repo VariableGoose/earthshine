@@ -779,7 +779,7 @@ void _es_da_resize(void **arr, isize_t count) {
     }
     // Half capacity when half empty and removing
     else if (count < 0 && head->count + count <= head->cap >> 1) {
-        while (head->count + count <= head->cap >> 1) {
+        while (head->count + count >= head->cap >> 1) {
             head->cap >>= 1;
         }
     }
