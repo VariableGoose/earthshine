@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.6
+    * Version: 1.7
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -765,6 +765,14 @@ typedef enum es_key_t {
     ES_KEY_COUNT,
 } es_key_t;
 
+typedef enum es_button_t {
+    ES_BUTTON_LEFT,
+    ES_BUTTON_MIDDLE,
+    ES_BUTTON_RIGHT,
+
+    ES_BUTTON_COUNT,
+} es_button_t;
+
 typedef enum es_key_action_t {
     ES_KEY_ACTION_RELEASE,
     ES_KEY_ACTION_PRESS,
@@ -774,6 +782,9 @@ typedef void es_window_t;
 
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
 typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action);
+typedef void (*es_window_mouse_button_callback_t)(es_window_t *window, es_button_t button, es_key_action_t action);
+typedef void (*es_window_cursor_position_callback)(es_window_t *window, i32_t x, i32_t y);
+typedef void (*es_window_scroll_callback)(es_window_t *window, i32_t offset);
 
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
@@ -792,6 +803,9 @@ typedef struct _es_window_t {
 
     es_window_resize_callback_t resize_callback;
     es_window_key_callback_t key_callback;
+    es_window_mouse_button_callback_t mouse_button_callback;
+    es_window_cursor_position_callback cursor_position_callback;
+    es_window_scroll_callback scroll_callback;
 } _es_window_t;
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
@@ -801,6 +815,9 @@ ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
 ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
 ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
+ES_API void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback);
+ES_API void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback);
+ES_API void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback);
 #ifdef ES_VULKAN
 ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
 #endif // ES_VULKAN

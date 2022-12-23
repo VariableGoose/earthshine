@@ -619,7 +619,7 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     window_attrs.background_pixel = 0;
     window_attrs.colormap = XCreateColormap(window->display, root, visinfo.visual, AllocNone);
     // Events the widnow accepts.
-    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask;
+    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
     usize_t attribute_mask = CWBackPixel | CWColormap | CWEventMask;
 
     // Create window.
@@ -764,6 +764,30 @@ void es_window_poll_events(es_window_t *window) {
                 }
             } break;
 
+            case ButtonPress:
+            case ButtonRelease: {
+                XButtonEvent *e = (XButtonEvent *) &ev;
+                es_key_action_t action = e->type == ButtonPress ? ES_KEY_ACTION_PRESS : ES_KEY_ACTION_RELEASE;
+                es_button_t button = ES_BUTTON_COUNT;
+                if (e->button < 4) {
+                    button = e->button - 1;
+                }
+                if (_window->mouse_button_callback && button != ES_BUTTON_COUNT) {
+                    _window->mouse_button_callback(window, e->button - 1, action);
+                }
+                i32_t scroll_offset = e->button == Button5 ? -1 : e->button == Button4 ? 1 : 0;
+                if (_window->scroll_callback && scroll_offset != 0 && action == ES_KEY_ACTION_PRESS) {
+                    _window->scroll_callback(window, scroll_offset);
+                }
+            } break;
+
+            case MotionNotify: {
+                XMotionEvent *e = (XMotionEvent *) &ev;
+                if (_window->cursor_position_callback) {
+                    _window->cursor_position_callback(window, e->x, e->y);
+                }
+            } break;
+
             case FocusIn:
             case FocusOut: {
                 // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
@@ -791,16 +815,6 @@ void es_window_resizable(es_window_t *window, b8_t resizable) {
     hints.max_width  = _window->width;
     hints.max_height = _window->height;
     XSetWMNormalHints(_window->display, _window->window, &hints);
-}
-
-void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback) {
-    _es_window_t *_window = window;
-    _window->resize_callback = callback;
-}
-
-void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback) {
-    _es_window_t *_window = window;
-    _window->key_callback = callback;
 }
 
 #ifdef ES_VULKAN
@@ -1113,3 +1127,32 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
     }
 }
 #endif // ES_OS_LINUX
+
+//
+// Callbacks (not OS specific)
+//
+
+void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->resize_callback = callback;
+}
+
+void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->key_callback = callback;
+}
+
+void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback) { 
+    _es_window_t *_window = window;
+    _window->mouse_button_callback = callback;
+}
+
+void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback) {
+    _es_window_t *_window = window;
+    _window->cursor_position_callback = callback;
+}
+
+void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback) {
+    _es_window_t *_window = window;
+    _window->scroll_callback = callback;
+}
