@@ -701,10 +701,6 @@ void es_window_free(es_window_t *window) {
     es_free(_window);
 }
 
-b8_t es_window_is_open(es_window_t *window) {
-    return ((_es_window_t *) window)->is_open;
-}
-
 void es_window_poll_events(es_window_t *window) {
     _es_window_t *_window = window;
     XEvent ev = {0};
@@ -1128,8 +1124,102 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
 #endif // ES_OS_LINUX
 
 //
+// Windows
+//
+#ifdef ES_OS_WIN32
+es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
+    _es_window_t *window = es_malloc(sizeof(_es_window_t));
+    window->is_open = true;
+
+    window->instance = GetModuleHandleA(0);
+
+    const char *class_name = "earthshine_window_class";
+    WNDCLASSA wc = {0};
+    wc.lpfnWndProc = _es_window_process_message;
+    wc.hInstance = window->instance;
+    wc.lpszClassName = class_name;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+
+    if (!RegisterClassA(&wc)) {
+        es_free(window);
+        return NULL;
+    }
+
+    DWORD style = WS_OVERLAPPED | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
+    if (resizable) {
+        style |= WS_MAXIMIZEBOX;
+        style |= WS_THICKFRAME;
+    }
+
+    // Correct window sizing.
+    RECT border_rect = {0};
+    AdjustWindowRectEx(&border_rect, style, 0, 0);
+    u32_t border_margin_x = border_rect.right - border_rect.left;
+    u32_t border_margin_y = border_rect.bottom - border_rect.top;
+
+    // Create window.
+    window->window = CreateWindowExA(
+        0,
+        class_name,
+        title,
+        style,
+        CW_USEDEFAULT, CW_USEDEFAULT, // X, Y
+        width + border_margin_x, height + border_margin_y,
+        0,
+        0,
+        window->instance,
+        0
+    );
+    if (window->window == NULL) {
+        es_free(window);
+        return NULL;
+    }
+    // Present window.
+    ShowWindow(window->window, SW_SHOW);
+
+    return window;
+}
+
+void es_window_free(es_window_t *window) {
+    _es_window_t *_window = window;
+    DestroyWindow(_window->window);
+}
+
+void es_window_poll_events(es_window_t *window) {
+    _es_window_t *_window = window;
+
+    MSG msg = {0};
+    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {
+        if (msg.message == WM_QUIT) {
+            _window->is_open = false;
+        } else {
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
+    }
+}
+
+LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param) {
+    switch (msg) {
+        case WM_DESTROY: {
+            PostQuitMessage(0);
+            return 0;
+        }
+        default: break;
+    }
+
+    return DefWindowProcA(hwnd, msg, w_param, l_param);
+}
+#endif // ES_OS_WIN32
+
+//
 // Getters
 //
+
+b8_t es_window_is_open(es_window_t *window) {
+    _es_window_t *_window = window;
+    return _window->is_open;
+}
 
 vec2_t es_window_get_size(es_window_t *window) {
     _es_window_t *_window = window;
