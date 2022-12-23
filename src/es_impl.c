@@ -1130,6 +1130,13 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
 es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
     _es_window_t *window = es_malloc(sizeof(_es_window_t));
     window->is_open = true;
+    window->size = vec2(width, height);
+
+    window->resize_callback = NULL;
+    window->key_callback = NULL;
+    window->mouse_button_callback = NULL;
+    window->cursor_position_callback = NULL;
+    window->scroll_callback = NULL;
 
     window->instance = GetModuleHandleA(0);
 
@@ -1139,6 +1146,8 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     wc.hInstance = window->instance;
     wc.lpszClassName = class_name;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    // Allocate extra bytes for window pointer.
+    wc.cbWndExtra = sizeof(window);
 
     if (!RegisterClassA(&wc)) {
         es_free(window);
@@ -1174,6 +1183,9 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
         es_free(window);
         return NULL;
     }
+
+    SetWindowLongPtrA(window->window, 0, (LONG_PTR) window);
+
     // Present window.
     ShowWindow(window->window, SW_SHOW);
 
@@ -1189,23 +1201,37 @@ void es_window_poll_events(es_window_t *window) {
     _es_window_t *_window = window;
 
     MSG msg = {0};
-    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {
-        if (msg.message == WM_QUIT) {
-            _window->is_open = false;
-        } else {
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
+    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) > 0) {
+        switch (msg.message) {
+            case WM_QUIT:
+                _window->is_open = false;
+                break;
+            default:
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+                break;
         }
     }
 }
 
 LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param) {
+    _es_window_t *window = (_es_window_t *) GetWindowLongPtrA(hwnd, 0);
     switch (msg) {
+        case WM_ERASEBKGND:
+            return 1;
         case WM_DESTROY: {
             PostQuitMessage(0);
             return 0;
         }
-        default: break;
+        case WM_SIZE: {
+            RECT r;
+            GetClientRect(hwnd, &r);
+            window->size.x = r.right - r.left;
+            window->size.y = r.bottom - r.top;
+            if (window->resize_callback != NULL) {
+                window->resize_callback(window, window->size.x, window->size.y);
+            }
+        } break;
     }
 
     return DefWindowProcA(hwnd, msg, w_param, l_param);
