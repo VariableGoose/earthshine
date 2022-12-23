@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.6
+    * Version: 1.7
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -623,7 +623,7 @@ typedef struct mat4_t { vec4_t i, j, k, l; } mat4_t;
 
 ES_INLINE mat4_t mat4v(vec4_t i, vec4_t j, vec4_t k, vec4_t l) { return (mat4_t) {i, j, k, l}; }
 ES_INLINE mat4_t mat4f(f32_t ix, f32_t iy, f32_t iz, f32_t iw, f32_t jx, f32_t jy, f32_t jz, f32_t jw, f32_t kx, f32_t ky, f32_t kz, f32_t kw, f32_t lx, f32_t ly, f32_t lz, f32_t lw) { return (mat4_t) {{ix, iy, iz, iw}, {jx, jy, jz, jw}, {kx, ky, kz, kw}, {lx, ly, lz, lw}}; }
-ES_INLINE mat4_t mat4_identity(void) { return (mat4_t) {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}; }
+ES_INLINE mat4_t mat4_identity(void) { return (mat4_t) {{1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}}; }
 ES_INLINE mat4_t mat4_muls(mat4_t mat, f32_t s) { return (mat4_t) {vec4_muls(mat.i, s), vec4_muls(mat.j, s), vec4_muls(mat.k, s), vec4_muls(mat.l, s)}; }
 ES_INLINE vec4_t mat4_mulv(mat4_t mat, vec4_t vec) { return vec4_add(vec4_add(vec4_add(vec4_muls(mat.i, vec.x), vec4_muls(mat.j, vec.y)), vec4_muls(mat.k, vec.z)), vec4_muls(mat.l, vec.w)); }
 ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a.i), mat4_mulv(b, a.j), mat4_mulv(b, a.k), mat4_mulv(b, a.l) }; }
@@ -765,6 +765,14 @@ typedef enum es_key_t {
     ES_KEY_COUNT,
 } es_key_t;
 
+typedef enum es_button_t {
+    ES_BUTTON_LEFT,
+    ES_BUTTON_MIDDLE,
+    ES_BUTTON_RIGHT,
+
+    ES_BUTTON_COUNT,
+} es_button_t;
+
 typedef enum es_key_action_t {
     ES_KEY_ACTION_RELEASE,
     ES_KEY_ACTION_PRESS,
@@ -774,6 +782,9 @@ typedef void es_window_t;
 
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
 typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action);
+typedef void (*es_window_mouse_button_callback_t)(es_window_t *window, es_button_t button, es_key_action_t action);
+typedef void (*es_window_cursor_position_callback)(es_window_t *window, i32_t x, i32_t y);
+typedef void (*es_window_scroll_callback)(es_window_t *window, i32_t offset);
 
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
@@ -790,8 +801,13 @@ typedef struct _es_window_t {
 #endif // ES_OS_WIN32
     es_key_action_t keys[ES_KEY_COUNT];
 
+    vec2_t size;
+
     es_window_resize_callback_t resize_callback;
     es_window_key_callback_t key_callback;
+    es_window_mouse_button_callback_t mouse_button_callback;
+    es_window_cursor_position_callback cursor_position_callback;
+    es_window_scroll_callback scroll_callback;
 } _es_window_t;
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
@@ -799,8 +815,12 @@ ES_API void es_window_free(es_window_t *window);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
+ES_API vec2_t es_window_get_size(es_window_t *window);
 ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
 ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
+ES_API void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback);
+ES_API void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback);
+ES_API void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback);
 #ifdef ES_VULKAN
 ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
 #endif // ES_VULKAN
@@ -1406,8 +1426,7 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     _es_window_t *window = es_malloc(sizeof(_es_window_t));
 
     window->is_open = true;
-    window->width   = width;
-    window->height  = height;
+    window->size = vec2(width, height);
 
     window->display = XOpenDisplay(NULL);
     if (window->display == NULL) {
@@ -1432,7 +1451,7 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     window_attrs.background_pixel = 0;
     window_attrs.colormap = XCreateColormap(window->display, root, visinfo.visual, AllocNone);
     // Events the widnow accepts.
-    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask;
+    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
     usize_t attribute_mask = CWBackPixel | CWColormap | CWEventMask;
 
     // Create window.
@@ -1451,10 +1470,10 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     XSizeHints hints = {0};
     if (!resizable) {
         hints.flags      = PMinSize | PMaxSize;
-        hints.min_width  = window->width;
-        hints.min_height = window->height;
-        hints.max_width  = window->width;
-        hints.max_height = window->height;
+        hints.min_width  = window->size.x;
+        hints.min_height = window->size.y;
+        hints.max_width  = window->size.x;
+        hints.max_height = window->size.y;
         XSetWMNormalHints(window->display, window->window, &hints);
     }
 
@@ -1540,13 +1559,13 @@ void es_window_poll_events(es_window_t *window) {
             } break;
             case ConfigureNotify: {
                 XConfigureEvent *e = (XConfigureEvent *) &ev;
-                if (_window->width != e->width || _window->height != e->height) {
+                if (_window->size.x != e->width || _window->size.y != e->height) {
                     if (_window->resize_callback) {
                         _window->resize_callback(window, e->width, e->height);
                     }
                 }
-                _window->width = e->width;
-                _window->height = e->height;
+                _window->size.x = e->width;
+                _window->size.y = e->height;
             } break;
 
             case KeyPress:
@@ -1577,6 +1596,30 @@ void es_window_poll_events(es_window_t *window) {
                 }
             } break;
 
+            case ButtonPress:
+            case ButtonRelease: {
+                XButtonEvent *e = (XButtonEvent *) &ev;
+                es_key_action_t action = e->type == ButtonPress ? ES_KEY_ACTION_PRESS : ES_KEY_ACTION_RELEASE;
+                es_button_t button = ES_BUTTON_COUNT;
+                if (e->button < 4) {
+                    button = e->button - 1;
+                }
+                if (_window->mouse_button_callback && button != ES_BUTTON_COUNT) {
+                    _window->mouse_button_callback(window, e->button - 1, action);
+                }
+                i32_t scroll_offset = e->button == Button5 ? -1 : e->button == Button4 ? 1 : 0;
+                if (_window->scroll_callback && scroll_offset != 0 && action == ES_KEY_ACTION_PRESS) {
+                    _window->scroll_callback(window, scroll_offset);
+                }
+            } break;
+
+            case MotionNotify: {
+                XMotionEvent *e = (XMotionEvent *) &ev;
+                if (_window->cursor_position_callback) {
+                    _window->cursor_position_callback(window, e->x, e->y);
+                }
+            } break;
+
             case FocusIn:
             case FocusOut: {
                 // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
@@ -1599,21 +1642,11 @@ void es_window_resizable(es_window_t *window, b8_t resizable) {
     if (!resizable) {
         hints.flags      = PMinSize | PMaxSize;
     }
-    hints.min_width  = _window->width;
-    hints.min_height = _window->height;
-    hints.max_width  = _window->width;
-    hints.max_height = _window->height;
+    hints.min_width  = _window->size.x;
+    hints.min_height = _window->size.y;
+    hints.max_width  = _window->size.x;
+    hints.max_height = _window->size.y;
     XSetWMNormalHints(_window->display, _window->window, &hints);
-}
-
-void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback) {
-    _es_window_t *_window = window;
-    _window->resize_callback = callback;
-}
-
-void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback) {
-    _es_window_t *_window = window;
-    _window->key_callback = callback;
 }
 
 #ifdef ES_VULKAN
@@ -1926,5 +1959,43 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
     }
 }
 #endif // ES_OS_LINUX
+
+//
+// Getters
+//
+
+vec2_t es_window_get_size(es_window_t *window) {
+    _es_window_t *_window = window;
+    return _window->size;
+}
+
+//
+// Callbacks (not OS specific)
+//
+
+void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->resize_callback = callback;
+}
+
+void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->key_callback = callback;
+}
+
+void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback) { 
+    _es_window_t *_window = window;
+    _window->mouse_button_callback = callback;
+}
+
+void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback) {
+    _es_window_t *_window = window;
+    _window->cursor_position_callback = callback;
+}
+
+void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback) {
+    _es_window_t *_window = window;
+    _window->scroll_callback = callback;
+}
 #endif /*ES_IMPL*/
 #endif // ES_H

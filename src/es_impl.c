@@ -593,8 +593,7 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     _es_window_t *window = es_malloc(sizeof(_es_window_t));
 
     window->is_open = true;
-    window->width   = width;
-    window->height  = height;
+    window->size = vec2(width, height);
 
     window->display = XOpenDisplay(NULL);
     if (window->display == NULL) {
@@ -638,10 +637,10 @@ es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t r
     XSizeHints hints = {0};
     if (!resizable) {
         hints.flags      = PMinSize | PMaxSize;
-        hints.min_width  = window->width;
-        hints.min_height = window->height;
-        hints.max_width  = window->width;
-        hints.max_height = window->height;
+        hints.min_width  = window->size.x;
+        hints.min_height = window->size.y;
+        hints.max_width  = window->size.x;
+        hints.max_height = window->size.y;
         XSetWMNormalHints(window->display, window->window, &hints);
     }
 
@@ -727,13 +726,13 @@ void es_window_poll_events(es_window_t *window) {
             } break;
             case ConfigureNotify: {
                 XConfigureEvent *e = (XConfigureEvent *) &ev;
-                if (_window->width != e->width || _window->height != e->height) {
+                if (_window->size.x != e->width || _window->size.y != e->height) {
                     if (_window->resize_callback) {
                         _window->resize_callback(window, e->width, e->height);
                     }
                 }
-                _window->width = e->width;
-                _window->height = e->height;
+                _window->size.x = e->width;
+                _window->size.y = e->height;
             } break;
 
             case KeyPress:
@@ -810,10 +809,10 @@ void es_window_resizable(es_window_t *window, b8_t resizable) {
     if (!resizable) {
         hints.flags      = PMinSize | PMaxSize;
     }
-    hints.min_width  = _window->width;
-    hints.min_height = _window->height;
-    hints.max_width  = _window->width;
-    hints.max_height = _window->height;
+    hints.min_width  = _window->size.x;
+    hints.min_height = _window->size.y;
+    hints.max_width  = _window->size.x;
+    hints.max_height = _window->size.y;
     XSetWMNormalHints(_window->display, _window->window, &hints);
 }
 
@@ -1127,6 +1126,15 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
     }
 }
 #endif // ES_OS_LINUX
+
+//
+// Getters
+//
+
+vec2_t es_window_get_size(es_window_t *window) {
+    _es_window_t *_window = window;
+    return _window->size;
+}
 
 //
 // Callbacks (not OS specific)
