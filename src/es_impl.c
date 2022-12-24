@@ -629,6 +629,9 @@ mat4_t mat4_inverse(mat4_t mat) {
 // Profiler
 /*=========================*/
 
+_es_profile_t _es_root_profile = {0};
+_es_profile_t *_es_curr_profile = &_es_root_profile;
+
 _es_profile_t _es_profile_new(const char *name) {
     _es_profile_t prof = {
         .parent = _es_curr_profile,

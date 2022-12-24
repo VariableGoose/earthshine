@@ -662,8 +662,8 @@ typedef struct _es_profile_entry_t {
     u32_t runs; 
 } _es_profile_t;
 
-static _es_profile_t _es_root_profile = {0};
-static _es_profile_t *_es_curr_profile = &_es_root_profile;
+ES_GLOBAL _es_profile_t _es_root_profile;
+ES_GLOBAL _es_profile_t *_es_curr_profile;
 
 ES_API _es_profile_t _es_profile_new(const char *name);
 ES_API void _es_profile_begin(const char *name);
