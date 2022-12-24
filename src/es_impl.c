@@ -738,7 +738,7 @@ void es_window_poll_events(es_window_t *window) {
                 // Pass symbol because it crashed when pressing åäö without passing it into the function.
                 // i32_t symbol = 0;
                 // Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
-                sym = XkbKeycodeToKeysym(_window->display, e->code, 0, 0);
+                sym = XkbKeycodeToKeysym(_window->display, e->keycode, 0, 0);
                 es_key_t key = _es_window_translate_keysym(sym);
 
                 // Check what event key action was performed.
@@ -1027,84 +1027,23 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
             return ES_KEY_SUPER_R;
 
         // Symbols.
-        case XK_exclam:
-            return ES_KEY_EXCLAMATION_MARK;
-        case XK_question:
-            return ES_KEY_QUESTION_MARK;
-        case XK_period:
-            return ES_KEY_PERIOD;
-        case XK_comma:
-            return ES_KEY_COMMA;
-        case XK_colon:
-            return ES_KEY_COLON;
-        case XK_semicolon:
-            return ES_KEY_SEMICOLON;
-        case XK_plus:
-            return ES_KEY_PLUS;
-        case XK_minus:
-            return ES_KEY_MINUS;
-        case XK_underscore:
-            return ES_KEY_UNDERSCORE;
-        case XK_equal:
-            return ES_KEY_EQUAL;
-        case XK_bracketleft:
-            return ES_KEY_BRACKET_L;
-        case XK_bracketright:
-            return ES_KEY_BRACKET_R;
-        case XK_braceleft:
-            return ES_KEY_BRACE_L;
-        case XK_braceright:
-            return ES_KEY_BRACE_R;
-        case XK_parenleft:
-            return ES_KEY_PAREN_L;
-        case XK_parenright:
-            return ES_KEY_PAREN_R;
-        case XK_dead_tilde:
-        case XK_asciitilde:
-            return ES_KEY_TILDE;
-        case XK_section:
-            return ES_KEY_SECTION;
-        case XK_acute:
-        case XK_dead_acute:
-            return ES_KEY_ACUTE;
-        case XK_apostrophe:
-            return ES_KEY_APOSTROPHE;
-        case XK_asterisk:
-            return ES_KEY_ASTERISK;
-        case XK_greater:
-            return ES_KEY_GREATER;
-        case XK_less:
-            return ES_KEY_LESS;
-        case XK_quotedbl:
-            return ES_KEY_QUOTE;
-        case XK_numbersign:
-            return ES_KEY_HASHTAG;
-        case XK_currency:
-            return ES_KEY_CURRENCY;
-        case XK_percent:
-            return ES_KEY_PERCENT;
-        case XK_ampersand:
-            return ES_KEY_AND;
-        case XK_slash:
-            return ES_KEY_SLASH;
-        case XK_bar:
-            return ES_KEY_PIPE;
-        case XK_at:
-            return ES_KEY_AT;
-        case XK_dollar:
-            return ES_KEY_DOLLAR;
-        case XK_backslash:
-            return ES_KEY_BACKSLASH;
+        case XK_period: return ES_KEY_PERIOD;
+        case XK_comma: return ES_KEY_COMMA;
+        case XK_semicolon: return ES_KEY_SEMICOLON;
+        case XK_plus: return ES_KEY_PLUS;
+        case XK_minus: return ES_KEY_MINUS;
+        case XK_equal: return ES_KEY_EQUAL;
+        case XK_bracketleft: return ES_KEY_BRACKET_L;
+        case XK_bracketright: return ES_KEY_BRACKET_R;
+        case XK_apostrophe: return ES_KEY_APOSTROPHE;
+        case XK_quotedbl: return ES_KEY_QUOTE;
+        case XK_slash: return ES_KEY_SLASH;
+        case XK_bar: return ES_KEY_PIPE;
+        case XK_backslash: return ES_KEY_BACKSLASH;
         case XK_dead_grave:
-        case XK_grave:
-            return ES_KEY_GRAVE;
-        case XK_dead_circumflex:
-        case XK_asciicircum:
-            return ES_KEY_CIRCUM;
+        case XK_grave: return ES_KEY_GRAVE;
 
-        default:
-            /* printf("0x%lx\n", keysym); */
-            return ES_KEY_NULL;
+        default: return ES_KEY_NULL;
     }
 }
 #endif // ES_OS_LINUX

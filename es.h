@@ -60,6 +60,7 @@
 
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 
 #ifdef ES_VULKAN
 // Define what surface KHR to use.
@@ -88,6 +89,7 @@
 // Windows
 #ifdef ES_OS_WIN32
 #include <windows.h>
+#pragma comment(lib, "user32.lib")
 #endif
 
 /*=========================*/
@@ -233,9 +235,9 @@ ES_API usize_t es_da_count(void *arr);
 #define es_da_remove_fast(ARR, I, OUT) _es_da_remove_fast_impl((void **) &(ARR), (I), (OUT))
 
 // Insert entry at the end of dynamic array.
-#define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)));
+#define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)))
 // Remove entry at the end of dynamic array.
-#define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT);
+#define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT)
 
 // Insert a whole array into dynamic array.
 #define es_da_insert_arr(ARR, D, C, I) do { \
@@ -790,17 +792,15 @@ typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
     Display *display;
     Window window;
-    b8_t is_open;
     Atom wm_delete_window;
-    i32_t width;
-    i32_t height;
     XIC input_context;
     XKeyEvent prev_key_event;
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
+    HINSTANCE instance;
+    HWND window;
 #endif // ES_OS_WIN32
-    es_key_action_t keys[ES_KEY_COUNT];
-
+    b8_t is_open;
     vec2_t size;
 
     es_window_resize_callback_t resize_callback;
@@ -812,9 +812,9 @@ typedef struct _es_window_t {
 
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
 ES_API void es_window_free(es_window_t *window);
-ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
 ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
+ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API vec2_t es_window_get_size(es_window_t *window);
 ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
 ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
@@ -827,6 +827,9 @@ ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstan
 #ifdef ES_OS_LINUX
 ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
 #endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+ES_API LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param);
+#endif // ES_OS_WIN32
 
 /*=========================*/
 // Implementation
@@ -1534,10 +1537,6 @@ void es_window_free(es_window_t *window) {
     es_free(_window);
 }
 
-b8_t es_window_is_open(es_window_t *window) {
-    return ((_es_window_t *) window)->is_open;
-}
-
 void es_window_poll_events(es_window_t *window) {
     _es_window_t *_window = window;
     XEvent ev = {0};
@@ -1961,8 +1960,128 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
 #endif // ES_OS_LINUX
 
 //
+// Windows
+//
+#ifdef ES_OS_WIN32
+es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
+    _es_window_t *window = es_malloc(sizeof(_es_window_t));
+    window->is_open = true;
+    window->size = vec2(width, height);
+
+    window->resize_callback = NULL;
+    window->key_callback = NULL;
+    window->mouse_button_callback = NULL;
+    window->cursor_position_callback = NULL;
+    window->scroll_callback = NULL;
+
+    window->instance = GetModuleHandleA(0);
+
+    const char *class_name = "earthshine_window_class";
+    WNDCLASSA wc = {0};
+    wc.lpfnWndProc = _es_window_process_message;
+    wc.hInstance = window->instance;
+    wc.lpszClassName = class_name;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    // Allocate extra bytes for window pointer.
+    wc.cbWndExtra = sizeof(window);
+
+    if (!RegisterClassA(&wc)) {
+        es_free(window);
+        return NULL;
+    }
+
+    DWORD style = WS_OVERLAPPED | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
+    if (resizable) {
+        style |= WS_MAXIMIZEBOX;
+        style |= WS_THICKFRAME;
+    }
+
+    // Correct window sizing.
+    RECT border_rect = {0};
+    AdjustWindowRectEx(&border_rect, style, 0, 0);
+    u32_t border_margin_x = border_rect.right - border_rect.left;
+    u32_t border_margin_y = border_rect.bottom - border_rect.top;
+
+    // Create window.
+    window->window = CreateWindowExA(
+        0,
+        class_name,
+        title,
+        style,
+        CW_USEDEFAULT, CW_USEDEFAULT, // X, Y
+        width + border_margin_x, height + border_margin_y,
+        0,
+        0,
+        window->instance,
+        0
+    );
+    if (window->window == NULL) {
+        es_free(window);
+        return NULL;
+    }
+
+    SetWindowLongPtrA(window->window, 0, (LONG_PTR) window);
+
+    // Present window.
+    ShowWindow(window->window, SW_SHOW);
+
+    return window;
+}
+
+void es_window_free(es_window_t *window) {
+    _es_window_t *_window = window;
+    DestroyWindow(_window->window);
+}
+
+void es_window_poll_events(es_window_t *window) {
+    _es_window_t *_window = window;
+
+    MSG msg = {0};
+    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) > 0) {
+        switch (msg.message) {
+            case WM_QUIT:
+                _window->is_open = false;
+                break;
+            default:
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+                break;
+        }
+    }
+}
+
+LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param) {
+    _es_window_t *window = (_es_window_t *) GetWindowLongPtrA(hwnd, 0);
+    switch (msg) {
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_DESTROY: {
+            PostQuitMessage(0);
+            return 0;
+        }
+        case WM_SIZE: {
+            RECT r;
+            GetClientRect(hwnd, &r);
+            window->size.x = r.right - r.left;
+            window->size.y = r.bottom - r.top;
+            if (window->resize_callback != NULL) {
+                window->resize_callback(window, window->size.x, window->size.y);
+            }
+        } break;
+    }
+
+    return DefWindowProcA(hwnd, msg, w_param, l_param);
+}
+#endif // ES_OS_WIN32
+
+//
 // Getters
 //
+
+b8_t es_window_is_open(es_window_t *window) {
+    _es_window_t *_window = window;
+    return _window->is_open;
+}
 
 vec2_t es_window_get_size(es_window_t *window) {
     _es_window_t *_window = window;
