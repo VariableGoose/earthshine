@@ -682,3 +682,777 @@ void es_profile_print(void) {
     }
     printf("========== End ==========\n");
 }
+
+/*=========================*/
+// Windowing
+/*=========================*/
+
+//
+// Linux
+//
+#ifdef ES_OS_LINUX
+es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
+    _es_window_t *window = es_malloc(sizeof(_es_window_t));
+
+    window->is_open = true;
+    window->size = vec2(width, height);
+
+    window->display = XOpenDisplay(NULL);
+    if (window->display == NULL) {
+        es_free(window);
+        return NULL;
+    }
+
+    i32_t root = DefaultRootWindow(window->display);
+    i32_t screen = DefaultScreen(window->display);
+
+    // Check if display is compatible.
+    i32_t screen_bit_depth = 24;
+    XVisualInfo visinfo = {0};
+    if (!XMatchVisualInfo(window->display, screen, screen_bit_depth, TrueColor, &visinfo)) {
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Configure window attributes.
+    XSetWindowAttributes window_attrs = {0};
+    window_attrs.background_pixel = 0;
+    window_attrs.colormap = XCreateColormap(window->display, root, visinfo.visual, AllocNone);
+    // Events the widnow accepts.
+    window_attrs.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | FocusChangeMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+    usize_t attribute_mask = CWBackPixel | CWColormap | CWEventMask;
+
+    // Create window.
+    window->window = XCreateWindow(window->display, root, 0, 0, width, height, 0, visinfo.depth, InputOutput, visinfo.visual, attribute_mask, &window_attrs);
+    if (!window->window) {
+        XDestroyWindow(window->display, window->window);
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Set title.
+    XStoreName(window->display, window->window, title);
+
+    // Window resizability.
+    XSizeHints hints = {0};
+    if (!resizable) {
+        hints.flags      = PMinSize | PMaxSize;
+        hints.min_width  = window->size.x;
+        hints.min_height = window->size.y;
+        hints.max_width  = window->size.x;
+        hints.max_height = window->size.y;
+        XSetWMNormalHints(window->display, window->window, &hints);
+    }
+
+    // Show window.
+    XMapWindow(window->display, window->window);
+    // Send all X commands to X-server.
+    XFlush(window->display);
+
+    // Get close command.
+    window->wm_delete_window = XInternAtom(window->display, "WM_DELETE_WINDOW", false);
+    if (!XSetWMProtocols(window->display, window->window, &window->wm_delete_window, true)) {
+        XDestroyWindow(window->display, window->window);
+        XCloseDisplay(window->display);
+        es_free(window);
+        return NULL;
+    }
+
+    // Input.
+    XIM xinput_method = XOpenIM(window->display, NULL, NULL, NULL);
+    if (!xinput_method) {
+        printf("Input method could not be opened\n");
+    }
+
+    XIMStyles *styles = NULL;
+    if (XGetIMValues(xinput_method, XNQueryInputStyle, &styles, NULL) || !styles) {
+        printf("Input styles could not be retrieved\n");
+    }
+
+    XIMStyle best_match_style = 0;
+    for (i32_t i = 0; i < styles->count_styles; i++) {
+        XIMStyle style = styles->supported_styles[i];
+        if (style == (XIMPreeditNothing | XIMStatusNothing)) {
+            best_match_style = style;
+            break;
+        }
+    }
+    XFree(styles);
+
+    if (!best_match_style) {
+        printf("No matching input style could be determined\n");
+    }
+
+    window->input_context = XCreateIC(
+        xinput_method,
+        XNInputStyle,   best_match_style,
+        XNClientWindow, window->window,
+        XNFocusWindow,  window->window,
+        NULL
+    );
+
+    return window;
+}
+
+void es_window_free(es_window_t *window) {
+    _es_window_t *_window = window;
+
+    XCloseDisplay(_window->display);
+    es_free(_window);
+}
+
+void es_window_poll_events(es_window_t *window) {
+    _es_window_t *_window = window;
+    XEvent ev = {0};
+    while (XPending(_window->display)) {
+        XNextEvent(_window->display, &ev);
+        switch (ev.type) {
+            case DestroyNotify: {
+                XDestroyWindowEvent *e = (XDestroyWindowEvent *) &ev;
+                if (e->window == _window->window) {
+                    _window->is_open = false;
+                }
+            } break;
+            case ClientMessage: {
+                XClientMessageEvent *e = (XClientMessageEvent *) &ev;
+                if ((Atom) e->data.l[0] == _window->wm_delete_window) {
+                    XDestroyWindow(_window->display, _window->window);
+                    _window->is_open = false;
+                }
+            } break;
+            case ConfigureNotify: {
+                XConfigureEvent *e = (XConfigureEvent *) &ev;
+                if (_window->size.x != e->width || _window->size.y != e->height) {
+                    if (_window->resize_callback) {
+                        _window->resize_callback(window, e->width, e->height);
+                    }
+                }
+                _window->size.x = e->width;
+                _window->size.y = e->height;
+            } break;
+
+            case KeyPress:
+            case KeyRelease: {
+                XKeyEvent *e = (XKeyEvent *) &ev;
+                KeySym sym;
+                // Pass symbol because it crashed when pressing åäö without passing it into the function.
+                // i32_t symbol = 0;
+                // Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
+                sym = XkbKeycodeToKeysym(_window->display, e->keycode, 0, 0);
+                es_key_t key = _es_window_translate_keysym(sym);
+
+                // Check what event key action was performed.
+                // NOTE: This is useless since key repeats are off because this doesn't work. A better solution is needed.
+                b8_t is_repeat = (_window->prev_key_event.time == e->time && _window->prev_key_event.keycode == e->keycode);
+                _window->prev_key_event = *e;
+                es_key_action_t action = -1;
+                if (is_repeat) {
+                    action = ES_KEY_ACTION_REPEAT;
+                } else {
+                    action = e->type == KeyPress;
+                }
+
+                if (_window->key_callback) {
+                    // Don't call the callback if the key isn't supported.
+                    if (key != -1) {
+                        _window->key_callback(window, key, e->state, action);
+                    }
+                }
+            } break;
+
+            case ButtonPress:
+            case ButtonRelease: {
+                XButtonEvent *e = (XButtonEvent *) &ev;
+                es_key_action_t action = e->type == ButtonPress ? ES_KEY_ACTION_PRESS : ES_KEY_ACTION_RELEASE;
+                es_button_t button = ES_BUTTON_COUNT;
+                if (e->button < 4) {
+                    button = e->button - 1;
+                }
+                if (_window->mouse_button_callback && button != ES_BUTTON_COUNT) {
+                    _window->mouse_button_callback(window, e->button - 1, action);
+                }
+                i32_t scroll_offset = e->button == Button5 ? -1 : e->button == Button4 ? 1 : 0;
+                if (_window->scroll_callback && scroll_offset != 0 && action == ES_KEY_ACTION_PRESS) {
+                    _window->scroll_callback(window, scroll_offset);
+                }
+            } break;
+
+            case MotionNotify: {
+                XMotionEvent *e = (XMotionEvent *) &ev;
+                if (_window->cursor_position_callback) {
+                    _window->cursor_position_callback(window, e->x, e->y);
+                }
+            } break;
+
+            case FocusIn:
+            case FocusOut: {
+                // Only disable key repeates when window is in focuse because X disables it system wid for some reason.
+                XFocusChangeEvent *e = (XFocusChangeEvent *) &ev;
+                if (e->type == FocusIn) {
+                    XAutoRepeatOff(_window->display);
+                } else {
+                    XAutoRepeatOn(_window->display);
+                }
+            }
+        }
+    }
+}
+
+#ifdef ES_VULKAN
+VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
+    VkSurfaceKHR surface;
+
+    const _es_window_t *_window = window;
+
+    VkXlibSurfaceCreateInfoKHR surface_create_info = {0};
+    surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    surface_create_info.pNext = NULL;
+    surface_create_info.flags = 0;
+    surface_create_info.dpy = _window->display;
+    surface_create_info.window = _window->window;
+
+    VkResult result = vkCreateXlibSurfaceKHR(instance, &surface_create_info, NULL, &surface);
+    if (result != VK_SUCCESS) {
+        return NULL;
+    }
+
+    return surface;
+}
+#endif // ES_VULKAN
+
+es_key_t _es_window_translate_keysym(KeySym keysym) {
+    switch (keysym) {
+        // Letters
+        // Generation code:
+        //     for (u32_t i = 0; i < 26; i++) {
+        //         printf("case XK_%c:\ncase XK_%c:\n    return ES_KEY_%c;\n", 'a' + i, 'A' + i, 'A' + i);
+        //     }
+        case XK_a:
+        case XK_A:
+            return ES_KEY_A;
+        case XK_b:
+        case XK_B:
+            return ES_KEY_B;
+        case XK_c:
+        case XK_C:
+            return ES_KEY_C;
+        case XK_d:
+        case XK_D:
+            return ES_KEY_D;
+        case XK_e:
+        case XK_E:
+            return ES_KEY_E;
+        case XK_f:
+        case XK_F:
+            return ES_KEY_F;
+        case XK_g:
+        case XK_G:
+            return ES_KEY_G;
+        case XK_h:
+        case XK_H:
+            return ES_KEY_H;
+        case XK_i:
+        case XK_I:
+            return ES_KEY_I;
+        case XK_j:
+        case XK_J:
+            return ES_KEY_J;
+        case XK_k:
+        case XK_K:
+            return ES_KEY_K;
+        case XK_l:
+        case XK_L:
+            return ES_KEY_L;
+        case XK_m:
+        case XK_M:
+            return ES_KEY_M;
+        case XK_n:
+        case XK_N:
+            return ES_KEY_N;
+        case XK_o:
+        case XK_O:
+            return ES_KEY_O;
+        case XK_p:
+        case XK_P:
+            return ES_KEY_P;
+        case XK_q:
+        case XK_Q:
+            return ES_KEY_Q;
+        case XK_r:
+        case XK_R:
+            return ES_KEY_R;
+        case XK_s:
+        case XK_S:
+            return ES_KEY_S;
+        case XK_t:
+        case XK_T:
+            return ES_KEY_T;
+        case XK_u:
+        case XK_U:
+            return ES_KEY_U;
+        case XK_v:
+        case XK_V:
+            return ES_KEY_V;
+        case XK_w:
+        case XK_W:
+            return ES_KEY_W;
+        case XK_x:
+        case XK_X:
+            return ES_KEY_X;
+        case XK_y:
+        case XK_Y:
+            return ES_KEY_Y;
+        case XK_z:
+        case XK_Z:
+            return ES_KEY_Z;
+
+        // Numbers
+        // Generation code:
+        //     for (u32_t i = 0; i < 10; i++) {
+        //         printf("case XK_%c:\n    return ES_KEY_%c;\n", '0' + i, '0' + i);
+        //     }
+        case XK_0: return ES_KEY_0;
+        case XK_1: return ES_KEY_1;
+        case XK_2: return ES_KEY_2;
+        case XK_3: return ES_KEY_3;
+        case XK_4: return ES_KEY_4;
+        case XK_5: return ES_KEY_5;
+        case XK_6: return ES_KEY_6;
+        case XK_7: return ES_KEY_7;
+        case XK_8: return ES_KEY_8;
+        case XK_9: return ES_KEY_9;
+
+        // Function keys
+        // Generation code:
+        //     for (u32_t i = 0; i < 24; i++) {
+        //         printf("case XK_F%d: return ES_KEY_F%d;\n", i + 1, i + 1);
+        //     }
+        case XK_F1:  return ES_KEY_F1;
+        case XK_F2:  return ES_KEY_F2;
+        case XK_F3:  return ES_KEY_F3;
+        case XK_F4:  return ES_KEY_F4;
+        case XK_F5:  return ES_KEY_F5;
+        case XK_F6:  return ES_KEY_F6;
+        case XK_F7:  return ES_KEY_F7;
+        case XK_F8:  return ES_KEY_F8;
+        case XK_F9:  return ES_KEY_F9;
+        case XK_F10: return ES_KEY_F10;
+        case XK_F11: return ES_KEY_F11;
+        case XK_F12: return ES_KEY_F12;
+        case XK_F13: return ES_KEY_F13;
+        case XK_F14: return ES_KEY_F14;
+        case XK_F15: return ES_KEY_F15;
+        case XK_F16: return ES_KEY_F16;
+        case XK_F17: return ES_KEY_F17;
+        case XK_F18: return ES_KEY_F18;
+        case XK_F19: return ES_KEY_F19;
+        case XK_F20: return ES_KEY_F20;
+        case XK_F21: return ES_KEY_F21;
+        case XK_F22: return ES_KEY_F22;
+        case XK_F23: return ES_KEY_F23;
+        case XK_F24: return ES_KEY_F24;
+
+        case XK_Escape:    return ES_KEY_ESC;
+        case XK_Tab:       return ES_KEY_TAB;
+        case XK_Return:    return ES_KEY_ENTER;
+        case XK_space:     return ES_KEY_SPACE;
+        case XK_BackSpace: return ES_KEY_BACKSPACE;
+        case XK_Caps_Lock: return ES_KEY_CAPS_LOCK;
+
+        case XK_Left:  return ES_KEY_LEFT;
+        case XK_Down:  return ES_KEY_DOWN;
+        case XK_Up:    return ES_KEY_UP;
+        case XK_Right: return ES_KEY_RIGHT;
+
+        // Mod keys.
+        case XK_Shift_L:   return ES_KEY_SHIFT_L;
+        case XK_Shift_R:   return ES_KEY_SHIFT_R;
+        case XK_Control_L: return ES_KEY_CTRL_L;
+        case XK_Control_R: return ES_KEY_CTRL_R;
+        case XK_Alt_L:     return ES_KEY_ALT_L;
+        case XK_Alt_R:     return ES_KEY_ALT_R;
+        case XK_Super_L:   return ES_KEY_SUPER_L;
+        case XK_Super_R:   return ES_KEY_SUPER_R;
+
+        // Symbols.
+        case XK_period:       return ES_KEY_PERIOD;
+        case XK_comma:        return ES_KEY_COMMA;
+        case XK_semicolon:    return ES_KEY_SEMICOLON;
+        case XK_plus:         return ES_KEY_PLUS;
+        case XK_minus:        return ES_KEY_MINUS;
+        case XK_equal:        return ES_KEY_EQUAL;
+        case XK_bracketleft:  return ES_KEY_BRACKET_L;
+        case XK_bracketright: return ES_KEY_BRACKET_R;
+        case XK_apostrophe:   return ES_KEY_APOSTROPHE;
+        case XK_quotedbl:     return ES_KEY_QUOTE;
+        case XK_slash:        return ES_KEY_SLASH;
+        case XK_bar:          return ES_KEY_PIPE;
+        case XK_backslash:    return ES_KEY_BACKSLASH;
+        case XK_dead_grave:
+        case XK_grave: return ES_KEY_GRAVE;
+
+        default: return ES_KEY_NULL;
+    }
+}
+#endif // ES_OS_LINUX
+
+//
+// Windows
+//
+#ifdef ES_OS_WIN32
+es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable) {
+    _es_window_t *window = es_malloc(sizeof(_es_window_t));
+    window->is_open = true;
+    window->size = vec2(width, height);
+
+    window->resize_callback = NULL;
+    window->key_callback = NULL;
+    window->mouse_button_callback = NULL;
+    window->cursor_position_callback = NULL;
+    window->scroll_callback = NULL;
+
+    window->instance = GetModuleHandleA(0);
+
+    const char *class_name = "earthshine_window_class";
+    WNDCLASSA wc = {0};
+    wc.lpfnWndProc = _es_window_process_message;
+    wc.hInstance = window->instance;
+    wc.lpszClassName = class_name;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    // Allocate extra bytes for window pointer.
+    wc.cbWndExtra = sizeof(window);
+
+    if (!RegisterClassA(&wc)) {
+        es_free(window);
+        return NULL;
+    }
+
+    DWORD style = WS_OVERLAPPED | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
+    if (resizable) {
+        style |= WS_MAXIMIZEBOX;
+        style |= WS_THICKFRAME;
+    }
+
+    // Correct window sizing.
+    RECT border_rect = {0};
+    AdjustWindowRectEx(&border_rect, style, 0, 0);
+    u32_t border_margin_x = border_rect.right - border_rect.left;
+    u32_t border_margin_y = border_rect.bottom - border_rect.top;
+
+    // Create window.
+    window->window = CreateWindowExA(
+        0,
+        class_name,
+        title,
+        style,
+        CW_USEDEFAULT, CW_USEDEFAULT, // X, Y
+        width + border_margin_x, height + border_margin_y,
+        0,
+        0,
+        window->instance,
+        0
+    );
+    if (window->window == NULL) {
+        es_free(window);
+        return NULL;
+    }
+
+    SetWindowLongPtrA(window->window, 0, (LONG_PTR) window);
+
+    // Present window.
+    ShowWindow(window->window, SW_SHOW);
+
+    return window;
+}
+
+void es_window_free(es_window_t *window) {
+    _es_window_t *_window = window;
+    DestroyWindow(_window->window);
+}
+
+void es_window_poll_events(es_window_t *window) {
+    _es_window_t *_window = window;
+
+    MSG msg = {0};
+    while (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) > 0) {
+        switch (msg.message) {
+            case WM_QUIT:
+                _window->is_open = false;
+                break;
+            default:
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+                break;
+        }
+    }
+}
+
+LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param) {
+    _es_window_t *window = (_es_window_t *) GetWindowLongPtrA(hwnd, 0);
+    switch (msg) {
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_DESTROY: {
+            PostQuitMessage(0);
+            return 0;
+        }
+        case WM_SIZE: {
+            if (window->resize_callback != NULL) {
+                RECT r;
+                GetClientRect(hwnd, &r);
+                window->size.x = r.right - r.left;
+                window->size.y = r.bottom - r.top;
+                window->resize_callback(window, window->size.x, window->size.y);
+            }
+        } break;
+
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP: {
+            es_key_action_t action = (msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN);
+            es_button_t button = ES_BUTTON_COUNT;
+            switch (msg)
+            {
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+                button = ES_BUTTON_LEFT;
+                break;
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP:
+                button = ES_BUTTON_MIDDLE;
+                break;
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+                button = ES_BUTTON_RIGHT;
+                break;
+            }
+            if (button != ES_BUTTON_COUNT && window->mouse_button_callback != NULL) {
+                window->mouse_button_callback(window, button, action);
+            }
+        } break;
+
+        case WM_MOUSEWHEEL: {
+            if (window->scroll_callback != NULL) {
+                i32_t offset = GET_WHEEL_DELTA_WPARAM(w_param);
+                if (offset == 0) {
+                    break;
+                }
+                offset = (offset < 0) ? -1 : 1;
+                window->scroll_callback(window, offset);
+            }
+        } break;
+
+        case WM_MOUSEMOVE: {
+            if (window->cursor_position_callback != NULL) {
+                i32_t x = GET_X_LPARAM(l_param);
+                i32_t y = GET_Y_LPARAM(l_param);
+                window->cursor_position_callback(window, x, y);
+            }
+        } break;
+
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP: {
+            es_key_action_t action = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+            es_key_t key = (u16_t) w_param;
+            key = _es_window_translate_scancode(key);
+
+            // Check for extended scan code.
+            b8_t is_extended = (HIWORD(l_param) & KF_EXTENDED) == KF_EXTENDED;
+
+            if (w_param == VK_MENU) {
+                key = is_extended ? ES_KEY_ALT_R : ES_KEY_ALT_L;
+            } else if (w_param == VK_SHIFT) {
+                u32_t left_shift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
+                u32_t scancode = ((l_param & (0xFF << 16)) >> 16);
+                key = scancode == left_shift ? ES_KEY_SHIFT_L : ES_KEY_SHIFT_R;
+            } else if (w_param == VK_CONTROL) {
+                key = is_extended ? ES_KEY_CTRL_R : ES_KEY_CTRL_L;
+            }
+
+            if (window->key_callback != NULL && key != ES_KEY_NULL) {
+                window->key_callback(window, key, 0, action);
+            }
+
+            // Prevent default windows behavior.
+            return 1;
+        }
+    }
+
+    return DefWindowProcA(hwnd, msg, w_param, l_param);
+}
+
+#ifdef ES_VULKAN
+VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
+    VkSurfaceKHR surface;
+
+    const _es_window_t *_window = window;
+
+    VkWin32SurfaceCreateInfoKHR surface_create_info = {0};
+    surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    surface_create_info.pNext = NULL;
+    surface_create_info.flags = 0;
+    surface_create_info.hinstance = _window->instance;
+    surface_create_info.hwnd = _window->window;
+
+    VkResult result = vkCreateXlibSurfaceKHR(instance, &surface_create_info, NULL, &surface);
+    if (result != VK_SUCCESS) {
+        return NULL;
+    }
+
+    return surface;
+}
+#endif // ES_VULKAN
+
+es_key_t _es_window_translate_scancode(u16_t scancode) {
+    switch (scancode)
+    {
+        case 0x41: return ES_KEY_A;
+        case 0x42: return ES_KEY_B;
+        case 0x43: return ES_KEY_C;
+        case 0x44: return ES_KEY_D;
+        case 0x45: return ES_KEY_E;
+        case 0x46: return ES_KEY_F;
+        case 0x47: return ES_KEY_G;
+        case 0x48: return ES_KEY_H;
+        case 0x49: return ES_KEY_I;
+        case 0x4a: return ES_KEY_J;
+        case 0x4b: return ES_KEY_K;
+        case 0x4c: return ES_KEY_L;
+        case 0x4d: return ES_KEY_M;
+        case 0x4e: return ES_KEY_N;
+        case 0x4f: return ES_KEY_O;
+        case 0x50: return ES_KEY_P;
+        case 0x51: return ES_KEY_Q;
+        case 0x52: return ES_KEY_R;
+        case 0x53: return ES_KEY_S;
+        case 0x54: return ES_KEY_T;
+        case 0x55: return ES_KEY_U;
+        case 0x56: return ES_KEY_V;
+        case 0x57: return ES_KEY_W;
+        case 0x58: return ES_KEY_X;
+        case 0x59: return ES_KEY_Y;
+        case 0x5a: return ES_KEY_Z;
+
+        case 0x30: return ES_KEY_0;
+        case 0x31: return ES_KEY_1;
+        case 0x32: return ES_KEY_2;
+        case 0x33: return ES_KEY_3;
+        case 0x34: return ES_KEY_4;
+        case 0x35: return ES_KEY_5;
+        case 0x36: return ES_KEY_6;
+        case 0x37: return ES_KEY_7;
+        case 0x38: return ES_KEY_8;
+        case 0x39: return ES_KEY_9;
+
+        case 0x70: return ES_KEY_F1;
+        case 0x71: return ES_KEY_F2;
+        case 0x72: return ES_KEY_F3;
+        case 0x73: return ES_KEY_F4;
+        case 0x74: return ES_KEY_F5;
+        case 0x75: return ES_KEY_F6;
+        case 0x76: return ES_KEY_F7;
+        case 0x77: return ES_KEY_F8;
+        case 0x78: return ES_KEY_F9;
+        case 0x79: return ES_KEY_F10;
+        case 0x7a: return ES_KEY_F11;
+        case 0x7b: return ES_KEY_F12;
+        case 0x7c: return ES_KEY_F13;
+        case 0x7d: return ES_KEY_F14;
+        case 0x7e: return ES_KEY_F15;
+        case 0x7f: return ES_KEY_F16;
+        case 0x80: return ES_KEY_F17;
+        case 0x81: return ES_KEY_F18;
+        case 0x82: return ES_KEY_F19;
+        case 0x83: return ES_KEY_F20;
+        case 0x84: return ES_KEY_F21;
+        case 0x85: return ES_KEY_F22;
+        case 0x86: return ES_KEY_F23;
+        case 0x87: return ES_KEY_F24;
+
+        case 0x1b: return ES_KEY_ESC;
+        case 0x9:  return ES_KEY_TAB;
+        case 0x0d: return ES_KEY_ENTER;
+        case 0x20: return ES_KEY_SPACE;
+        case 0x8:  return ES_KEY_BACKSPACE;
+        case 0x14: return ES_KEY_CAPS_LOCK;
+
+        case 0x25: return ES_KEY_LEFT;
+        case 0x28: return ES_KEY_DOWN;
+        case 0x26: return ES_KEY_UP;
+        case 0x27: return ES_KEY_RIGHT;
+
+        case 0xa0: return ES_KEY_SHIFT_L;
+        case 0xa1: return ES_KEY_SHIFT_R;
+        case 0xa2: return ES_KEY_CTRL_L;
+        case 0xa3: return ES_KEY_CTRL_R;
+        case 0xa4: return ES_KEY_ALT_L;
+        case 0xa5: return ES_KEY_ALT_R;
+        case 0x5b: return ES_KEY_SUPER_L;
+        case 0x5c: return ES_KEY_SUPER_R;
+
+        case 0x3b: return ES_KEY_SEMICOLON;
+        case 0xde: return ES_KEY_APOSTROPHE;
+        case 0xbb: return ES_KEY_EQUAL;
+        case 0xbc: return ES_KEY_COMMA;
+        case 0xbd: return ES_KEY_MINUS;
+        case 0xbe: return ES_KEY_PERIOD;
+        case 0xbf: return ES_KEY_SLASH;
+        case 0xc0: return ES_KEY_GRAVE;
+        case 0xdb: return ES_KEY_BRACKET_L;
+        case 0xdc: return ES_KEY_PIPE;
+        case 0xdd: return ES_KEY_BRACKET_R;
+
+        default: return ES_KEY_NULL;
+    }
+}
+#endif // ES_OS_WIN32
+
+//
+// Getters
+//
+
+b8_t es_window_is_open(es_window_t *window) {
+    _es_window_t *_window = window;
+    return _window->is_open;
+}
+
+vec2_t es_window_get_size(es_window_t *window) {
+    _es_window_t *_window = window;
+    return _window->size;
+}
+
+//
+// Callbacks (not OS specific)
+//
+
+void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->resize_callback = callback;
+}
+
+void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback) {
+    _es_window_t *_window = window;
+    _window->key_callback = callback;
+}
+
+void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback) { 
+    _es_window_t *_window = window;
+    _window->mouse_button_callback = callback;
+}
+
+void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback) {
+    _es_window_t *_window = window;
+    _window->cursor_position_callback = callback;
+}
+
+void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback) {
+    _es_window_t *_window = window;
+    _window->scroll_callback = callback;
+}

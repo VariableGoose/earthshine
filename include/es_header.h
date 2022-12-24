@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.7
+    * Version: 1.8
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -63,6 +63,18 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <stdio.h>
+
+#ifdef ES_VULKAN
+// Define what surface KHR to use.
+#ifdef ES_OS_LINUX
+#define VK_USE_PLATFORM_XLIB_KHR
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif // ES_OS_WIN32
+#include <vulkan/vulkan.h>
+#endif // ES_VULKAN
 
 //
 // OS Specific
@@ -71,11 +83,17 @@
 // Linux
 #ifdef ES_OS_LINUX
 #include <pthread.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/XKBlib.h>
 #endif // ES_OS_LINUX
 
 // Windows
 #ifdef ES_OS_WIN32
 #include <windows.h>
+#include <windowsx.h> // Input parsing.
+// #pragma comment(lib, "user32.lib")
 #endif
 
 /*=========================*/
@@ -221,9 +239,9 @@ ES_API usize_t es_da_count(void *arr);
 #define es_da_remove_fast(ARR, I, OUT) _es_da_remove_fast_impl((void **) &(ARR), (I), (OUT))
 
 // Insert entry at the end of dynamic array.
-#define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)));
+#define es_da_push(ARR, D) es_da_insert_fast(ARR, D, es_da_count((ARR)))
 // Remove entry at the end of dynamic array.
-#define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT);
+#define es_da_pop(ARR, OUT) es_da_remove_fast(ARR, es_da_count((ARR)) - 1, OUT)
 
 // Insert a whole array into dynamic array.
 #define es_da_insert_arr(ARR, D, C, I) do { \
@@ -625,7 +643,7 @@ typedef struct mat4_t { vec4_t i, j, k, l; } mat4_t;
 
 ES_INLINE mat4_t mat4v(vec4_t i, vec4_t j, vec4_t k, vec4_t l) { return (mat4_t) {i, j, k, l}; }
 ES_INLINE mat4_t mat4f(f32_t ix, f32_t iy, f32_t iz, f32_t iw, f32_t jx, f32_t jy, f32_t jz, f32_t jw, f32_t kx, f32_t ky, f32_t kz, f32_t kw, f32_t lx, f32_t ly, f32_t lz, f32_t lw) { return (mat4_t) {{ix, iy, iz, iw}, {jx, jy, jz, jw}, {kx, ky, kz, kw}, {lx, ly, lz, lw}}; }
-ES_INLINE mat4_t mat4_identity(void) { return (mat4_t) {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}; }
+ES_INLINE mat4_t mat4_identity(void) { return (mat4_t) {{1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}}; }
 ES_INLINE mat4_t mat4_muls(mat4_t mat, f32_t s) { return (mat4_t) {vec4_muls(mat.i, s), vec4_muls(mat.j, s), vec4_muls(mat.k, s), vec4_muls(mat.l, s)}; }
 ES_INLINE vec4_t mat4_mulv(mat4_t mat, vec4_t vec) { return vec4_add(vec4_add(vec4_add(vec4_muls(mat.i, vec.x), vec4_muls(mat.j, vec.y)), vec4_muls(mat.k, vec.z)), vec4_muls(mat.l, vec.w)); }
 ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a.i), mat4_mulv(b, a.j), mat4_mulv(b, a.k), mat4_mulv(b, a.l) }; }
@@ -654,6 +672,187 @@ ES_API void _es_profile_print(const _es_profile_t *prof, usize_t gen);
 ES_API void es_profile_print(void);
 
 #define es_profile(NAME) for (b8_t es_macro_var(i) = ((void) _es_profile_begin(NAME), false); !es_macro_var(i); es_macro_var(i) = true, (void) _es_profile_end())
+
+/*=========================*/
+// Windowing
+/*=========================*/
+
+typedef enum es_key_t {
+    ES_KEY_NULL = -1,
+
+    // Letters
+    ES_KEY_A,
+    ES_KEY_B,
+    ES_KEY_C,
+    ES_KEY_D,
+    ES_KEY_E,
+    ES_KEY_F,
+    ES_KEY_G,
+    ES_KEY_H,
+    ES_KEY_I,
+    ES_KEY_J,
+    ES_KEY_K,
+    ES_KEY_L,
+    ES_KEY_M,
+    ES_KEY_N,
+    ES_KEY_O,
+    ES_KEY_P,
+    ES_KEY_Q,
+    ES_KEY_R,
+    ES_KEY_S,
+    ES_KEY_T,
+    ES_KEY_U,
+    ES_KEY_V,
+    ES_KEY_W,
+    ES_KEY_X,
+    ES_KEY_Y,
+    ES_KEY_Z,
+
+    // Numbers
+    ES_KEY_0,
+    ES_KEY_1,
+    ES_KEY_2,
+    ES_KEY_3,
+    ES_KEY_4,
+    ES_KEY_5,
+    ES_KEY_6,
+    ES_KEY_7,
+    ES_KEY_8,
+    ES_KEY_9,
+
+    // Function keys
+    ES_KEY_F1,
+    ES_KEY_F2,
+    ES_KEY_F3,
+    ES_KEY_F4,
+    ES_KEY_F5,
+    ES_KEY_F6,
+    ES_KEY_F7,
+    ES_KEY_F8,
+    ES_KEY_F9,
+    ES_KEY_F10,
+    ES_KEY_F11,
+    ES_KEY_F12,
+    ES_KEY_F13,
+    ES_KEY_F14,
+    ES_KEY_F15,
+    ES_KEY_F16,
+    ES_KEY_F17,
+    ES_KEY_F18,
+    ES_KEY_F19,
+    ES_KEY_F20,
+    ES_KEY_F21,
+    ES_KEY_F22,
+    ES_KEY_F23,
+    ES_KEY_F24,
+
+    ES_KEY_ESC,
+    ES_KEY_TAB,
+    ES_KEY_ENTER,
+    ES_KEY_SPACE,
+    ES_KEY_BACKSPACE,
+    ES_KEY_CAPS_LOCK,
+
+    // Arrows.
+    ES_KEY_LEFT,
+    ES_KEY_DOWN,
+    ES_KEY_UP,
+    ES_KEY_RIGHT,
+
+    // Mod keys.
+    ES_KEY_SHIFT_L,
+    ES_KEY_SHIFT_R,
+    ES_KEY_CTRL_L,
+    ES_KEY_CTRL_R,
+    ES_KEY_ALT_L,
+    ES_KEY_ALT_R,
+    ES_KEY_SUPER_L,
+    ES_KEY_SUPER_R,
+
+    // Symbols.
+    ES_KEY_SEMICOLON,  // ;
+    ES_KEY_APOSTROPHE, // '
+    ES_KEY_EQUAL,      // =/+
+    ES_KEY_COMMA,      // ,
+    ES_KEY_MINUS,      // -
+    ES_KEY_PERIOD,     // .
+    ES_KEY_SLASH,      // /
+    ES_KEY_GRAVE,      // `
+    ES_KEY_BRACKET_L,  // [
+    ES_KEY_PIPE,       // |
+    ES_KEY_BRACKET_R,  // ]
+
+    // Duplicates.
+    ES_KEY_QUOTE      = ES_KEY_APOSTROPHE,
+    ES_KEY_PLUS       = ES_KEY_EQUAL,
+    ES_KEY_BACKSLASH  = ES_KEY_PIPE,
+
+    ES_KEY_COUNT = ES_KEY_BRACKET_R + 1,
+} es_key_t;
+
+typedef enum es_button_t {
+    ES_BUTTON_LEFT,
+    ES_BUTTON_MIDDLE,
+    ES_BUTTON_RIGHT,
+
+    ES_BUTTON_COUNT,
+} es_button_t;
+
+typedef enum es_key_action_t {
+    ES_KEY_ACTION_RELEASE,
+    ES_KEY_ACTION_PRESS,
+    ES_KEY_ACTION_REPEAT,
+} es_key_action_t;
+typedef void es_window_t;
+
+typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
+typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action);
+typedef void (*es_window_mouse_button_callback_t)(es_window_t *window, es_button_t button, es_key_action_t action);
+typedef void (*es_window_cursor_position_callback)(es_window_t *window, i32_t x, i32_t y);
+typedef void (*es_window_scroll_callback)(es_window_t *window, i32_t offset);
+
+typedef struct _es_window_t {
+#ifdef ES_OS_LINUX
+    Display *display;
+    Window window;
+    Atom wm_delete_window;
+    XIC input_context;
+    XKeyEvent prev_key_event;
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+    HINSTANCE instance;
+    HWND window;
+#endif // ES_OS_WIN32
+    b8_t is_open;
+    vec2_t size;
+
+    es_window_resize_callback_t resize_callback;
+    es_window_key_callback_t key_callback;
+    es_window_mouse_button_callback_t mouse_button_callback;
+    es_window_cursor_position_callback cursor_position_callback;
+    es_window_scroll_callback scroll_callback;
+} _es_window_t;
+
+ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
+ES_API void es_window_free(es_window_t *window);
+ES_API void es_window_poll_events(es_window_t *window);
+ES_API b8_t es_window_is_open(es_window_t *window);
+ES_API vec2_t es_window_get_size(es_window_t *window);
+ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
+ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
+ES_API void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback);
+ES_API void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback);
+ES_API void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback);
+#ifdef ES_VULKAN
+ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
+#endif // ES_VULKAN
+#ifdef ES_OS_LINUX
+ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
+#endif // ES_OS_LINUX
+#ifdef ES_OS_WIN32
+ES_API LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param);
+ES_API es_key_t _es_window_translate_scancode(u16_t scancode);
+#endif // ES_OS_WIN32
 
 /*=========================*/
 // Implementation
