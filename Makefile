@@ -5,6 +5,7 @@ LFLAGS :=
 DFLAGS :=
 
 ifeq ($(OS), Windows_NT)
+	LFLAGS += -I$(VULKAN_SDK)/Include
 else
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux)

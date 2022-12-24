@@ -89,7 +89,7 @@
 // Windows
 #ifdef ES_OS_WIN32
 #include <windows.h>
-#pragma comment(lib, "user32.lib")
+// #pragma comment(lib, "user32.lib")
 #endif
 
 /*=========================*/
@@ -813,7 +813,6 @@ typedef struct _es_window_t {
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
 ES_API void es_window_free(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
-ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API vec2_t es_window_get_size(es_window_t *window);
 ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);

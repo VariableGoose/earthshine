@@ -797,21 +797,6 @@ void es_window_poll_events(es_window_t *window) {
     }
 }
 
-void es_window_resizable(es_window_t *window, b8_t resizable) {
-    _es_window_t *_window = window;
-
-    // Window resizability.
-    XSizeHints hints = {0};
-    if (!resizable) {
-        hints.flags      = PMinSize | PMaxSize;
-    }
-    hints.min_width  = _window->size.x;
-    hints.min_height = _window->size.y;
-    hints.max_width  = _window->size.x;
-    hints.max_height = _window->size.y;
-    XSetWMNormalHints(_window->display, _window->window, &hints);
-}
-
 #ifdef ES_VULKAN
 VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
     VkSurfaceKHR surface;
@@ -1232,6 +1217,40 @@ LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param
                 window->resize_callback(window, window->size.x, window->size.y);
             }
         } break;
+
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP: {
+            es_key_action_t action = (msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN);
+            es_button_t button = ES_BUTTON_COUNT;
+            switch (msg)
+            {
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+                button = ES_BUTTON_LEFT;
+                break;
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP:
+                button = ES_BUTTON_MIDDLE;
+                break;
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+                button = ES_BUTTON_RIGHT;
+                break;
+            }
+            if (button != ES_BUTTON_COUNT && window->mouse_button_callback != NULL) {
+                window->mouse_button_callback(window, button, action);
+            }
+        } break;
+
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+            break;
     }
 
     return DefWindowProcA(hwnd, msg, w_param, l_param);
