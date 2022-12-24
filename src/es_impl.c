@@ -1299,6 +1299,28 @@ LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param
     return DefWindowProcA(hwnd, msg, w_param, l_param);
 }
 
+#ifdef ES_VULKAN
+VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
+    VkSurfaceKHR surface;
+
+    const _es_window_t *_window = window;
+
+    VkWin32SurfaceCreateInfoKHR surface_create_info = {0};
+    surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    surface_create_info.pNext = NULL;
+    surface_create_info.flags = 0;
+    surface_create_info.hinstance = _window->instance;
+    surface_create_info.hwnd = _window->window;
+
+    VkResult result = vkCreateXlibSurfaceKHR(instance, &surface_create_info, NULL, &surface);
+    if (result != VK_SUCCESS) {
+        return NULL;
+    }
+
+    return surface;
+}
+#endif // ES_VULKAN
+
 es_key_t _es_window_translate_scancode(u16_t scancode) {
     switch (scancode)
     {
