@@ -11,7 +11,7 @@ static void key_callback(es_window_t *window, es_key_t keycode, usize_t mod, es_
     (void) mod;
     (void) action;
     (void) keycode;
-    printf("%d: %d\n", action, keycode);
+    printf("%d: %x/%d\n", action, keycode, keycode);
 }
 
 static void button_callback(es_window_t *window, es_button_t button, es_key_action_t action) {

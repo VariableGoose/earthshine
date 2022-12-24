@@ -729,43 +729,24 @@ typedef enum es_key_t {
     ES_KEY_SUPER_R,
 
     // Symbols.
-    ES_KEY_EXCLAMATION_MARK, // !
-    ES_KEY_QUESTION_MARK,    // ?
-    ES_KEY_PERIOD,           // .
-    ES_KEY_COMMA,            // ,
-    ES_KEY_COLON,            // :
-    ES_KEY_SEMICOLON,        // ;
-    ES_KEY_PLUS,             // +
-    ES_KEY_MINUS,            // -
-    ES_KEY_UNDERSCORE,       // _
-    ES_KEY_EQUAL,            // =
-    ES_KEY_BRACKET_L,        // [
-    ES_KEY_BRACKET_R,        // ]
-    ES_KEY_BRACE_L,          // {
-    ES_KEY_BRACE_R,          // }
-    ES_KEY_PAREN_L,          // ( 
-    ES_KEY_PAREN_R,          // )
-    ES_KEY_TILDE,            // ~
-    ES_KEY_SECTION,          // §
-    ES_KEY_ACUTE,            // ´
-    ES_KEY_APOSTROPHE,       // '
-    ES_KEY_ASTERISK,         // *
-    ES_KEY_GREATER,          // >
-    ES_KEY_LESS,             // <
-    ES_KEY_QUOTE,            // "
-    ES_KEY_HASHTAG,          // #
-    ES_KEY_CURRENCY,         // ¤
-    ES_KEY_PERCENT,          // %
-    ES_KEY_AND,              // &
-    ES_KEY_SLASH,            // /
-    ES_KEY_PIPE,             // |
-    ES_KEY_AT,               // @
-    ES_KEY_DOLLAR,           // $
-    ES_KEY_BACKSLASH,        /* \ */
-    ES_KEY_GRAVE,            // `
-    ES_KEY_CIRCUM,           // ^
+    ES_KEY_SEMICOLON,  // ;
+    ES_KEY_APOSTROPHE, // '
+    ES_KEY_EQUAL,      // =/+
+    ES_KEY_COMMA,      // ,
+    ES_KEY_MINUS,      // -
+    ES_KEY_PERIOD,     // .
+    ES_KEY_SLASH,      // /
+    ES_KEY_GRAVE,      // `
+    ES_KEY_BRACKET_L,  // [
+    ES_KEY_PIPE,       // |
+    ES_KEY_BRACKET_R,  // ]
 
-    ES_KEY_COUNT,
+    // Duplicates.
+    ES_KEY_QUOTE      = ES_KEY_APOSTROPHE,
+    ES_KEY_PLUS       = ES_KEY_EQUAL,
+    ES_KEY_BACKSLASH  = ES_KEY_PIPE,
+
+    ES_KEY_COUNT = ES_KEY_BRACKET_R + 1,
 } es_key_t;
 
 typedef enum es_button_t {
@@ -829,6 +810,7 @@ ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
 ES_API LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param);
+ES_API es_key_t _es_window_translate_scancode(u16_t scancode);
 #endif // ES_OS_WIN32
 
 /*=========================*/

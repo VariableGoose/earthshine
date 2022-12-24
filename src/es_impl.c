@@ -736,8 +736,9 @@ void es_window_poll_events(es_window_t *window) {
                 XKeyEvent *e = (XKeyEvent *) &ev;
                 KeySym sym;
                 // Pass symbol because it crashed when pressing åäö without passing it into the function.
-                i32_t symbol = 0;
-                Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
+                // i32_t symbol = 0;
+                // Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
+                sym = XkbKeycodeToKeysym(_window->display, e->code, 0, 0);
                 es_key_t key = _es_window_translate_keysym(sym);
 
                 // Check what event key action was performed.
@@ -1268,11 +1269,137 @@ LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param
         case WM_SYSKEYDOWN:
         case WM_SYSKEYUP:
         case WM_KEYDOWN:
-        case WM_KEYUP:
-            break;
+        case WM_KEYUP: {
+            es_key_action_t action = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+            es_key_t key = (u16_t) w_param;
+            key = _es_window_translate_scancode(key);
+
+            // Check for extended scan code.
+            b8_t is_extended = (HIWORD(l_param) & KF_EXTENDED) == KF_EXTENDED;
+
+            if (w_param == VK_MENU) {
+                key = is_extended ? ES_KEY_ALT_R : ES_KEY_ALT_L;
+            } else if (w_param == VK_SHIFT) {
+                u32_t left_shift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
+                u32_t scancode = ((l_param & (0xFF << 16)) >> 16);
+                key = scancode == left_shift ? ES_KEY_SHIFT_L : ES_KEY_SHIFT_R;
+            } else if (w_param == VK_CONTROL) {
+                key = is_extended ? ES_KEY_CTRL_R : ES_KEY_CTRL_L;
+            }
+
+            if (window->key_callback != NULL && key != ES_KEY_NULL) {
+                window->key_callback(window, key, 0, action);
+            }
+
+            // Prevent default windows behavior.
+            return 1;
+        }
     }
 
     return DefWindowProcA(hwnd, msg, w_param, l_param);
+}
+
+es_key_t _es_window_translate_scancode(u16_t scancode) {
+    switch (scancode)
+    {
+        case 0x41: return ES_KEY_A;
+        case 0x42: return ES_KEY_B;
+        case 0x43: return ES_KEY_C;
+        case 0x44: return ES_KEY_D;
+        case 0x45: return ES_KEY_E;
+        case 0x46: return ES_KEY_F;
+        case 0x47: return ES_KEY_G;
+        case 0x48: return ES_KEY_H;
+        case 0x49: return ES_KEY_I;
+        case 0x4a: return ES_KEY_J;
+        case 0x4b: return ES_KEY_K;
+        case 0x4c: return ES_KEY_L;
+        case 0x4d: return ES_KEY_M;
+        case 0x4e: return ES_KEY_N;
+        case 0x4f: return ES_KEY_O;
+        case 0x50: return ES_KEY_P;
+        case 0x51: return ES_KEY_Q;
+        case 0x52: return ES_KEY_R;
+        case 0x53: return ES_KEY_S;
+        case 0x54: return ES_KEY_T;
+        case 0x55: return ES_KEY_U;
+        case 0x56: return ES_KEY_V;
+        case 0x57: return ES_KEY_W;
+        case 0x58: return ES_KEY_X;
+        case 0x59: return ES_KEY_Y;
+        case 0x5a: return ES_KEY_Z;
+
+        case 0x30: return ES_KEY_0;
+        case 0x31: return ES_KEY_1;
+        case 0x32: return ES_KEY_2;
+        case 0x33: return ES_KEY_3;
+        case 0x34: return ES_KEY_4;
+        case 0x35: return ES_KEY_5;
+        case 0x36: return ES_KEY_6;
+        case 0x37: return ES_KEY_7;
+        case 0x38: return ES_KEY_8;
+        case 0x39: return ES_KEY_9;
+
+        case 0x70: return ES_KEY_F1;
+        case 0x71: return ES_KEY_F2;
+        case 0x72: return ES_KEY_F3;
+        case 0x73: return ES_KEY_F4;
+        case 0x74: return ES_KEY_F5;
+        case 0x75: return ES_KEY_F6;
+        case 0x76: return ES_KEY_F7;
+        case 0x77: return ES_KEY_F8;
+        case 0x78: return ES_KEY_F9;
+        case 0x79: return ES_KEY_F10;
+        case 0x7a: return ES_KEY_F11;
+        case 0x7b: return ES_KEY_F12;
+        case 0x7c: return ES_KEY_F13;
+        case 0x7d: return ES_KEY_F14;
+        case 0x7e: return ES_KEY_F15;
+        case 0x7f: return ES_KEY_F16;
+        case 0x80: return ES_KEY_F17;
+        case 0x81: return ES_KEY_F18;
+        case 0x82: return ES_KEY_F19;
+        case 0x83: return ES_KEY_F20;
+        case 0x84: return ES_KEY_F21;
+        case 0x85: return ES_KEY_F22;
+        case 0x86: return ES_KEY_F23;
+        case 0x87: return ES_KEY_F24;
+
+        case 0x1b: return ES_KEY_ESC;
+        case 0x9:  return ES_KEY_TAB;
+        case 0x0d: return ES_KEY_ENTER;
+        case 0x20: return ES_KEY_SPACE;
+        case 0x8:  return ES_KEY_BACKSPACE;
+        case 0x14: return ES_KEY_CAPS_LOCK;
+
+        case 0x25: return ES_KEY_LEFT;
+        case 0x28: return ES_KEY_DOWN;
+        case 0x26: return ES_KEY_UP;
+        case 0x27: return ES_KEY_RIGHT;
+
+        case 0xa0: return ES_KEY_SHIFT_L;
+        case 0xa1: return ES_KEY_SHIFT_R;
+        case 0xa2: return ES_KEY_CTRL_L;
+        case 0xa3: return ES_KEY_CTRL_R;
+        case 0xa4: return ES_KEY_ALT_L;
+        case 0xa5: return ES_KEY_ALT_R;
+        case 0x5b: return ES_KEY_SUPER_L;
+        case 0x5c: return ES_KEY_SUPER_R;
+
+        case 0x3b: return ES_KEY_SEMICOLON;
+        case 0xde: return ES_KEY_APOSTROPHE;
+        case 0xbb: return ES_KEY_EQUAL;
+        case 0xbc: return ES_KEY_COMMA;
+        case 0xbd: return ES_KEY_MINUS;
+        case 0xbe: return ES_KEY_PERIOD;
+        case 0xbf: return ES_KEY_SLASH;
+        case 0xc0: return ES_KEY_GRAVE;
+        case 0xdb: return ES_KEY_BRACKET_L;
+        case 0xdc: return ES_KEY_PIPE;
+        case 0xdd: return ES_KEY_BRACKET_R;
+
+        default: return ES_KEY_NULL;
+    }
 }
 #endif // ES_OS_WIN32
 
