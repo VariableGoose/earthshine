@@ -30,7 +30,7 @@ void scroll_callback(es_window_t *window, i32_t offset) {
 }
 
 i32_t main(void) {
-    es_window_t *window = es_window_init(800, 600, "1", true);
+    es_window_t *window = es_window_init(800, 600, "1", false);
 
     es_window_set_resize_callback(window, resize_callback);
     es_window_set_key_callback(window, key_callback);

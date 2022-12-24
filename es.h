@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.7
+    * Version: 1.8
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -62,9 +62,7 @@
 
 #include <string.h>
 #include <math.h>
-<<<<<<< HEAD
 #include <time.h>
-=======
 #include <stdio.h>
 
 #ifdef ES_VULKAN
@@ -77,7 +75,6 @@
 #endif // ES_OS_WIN32
 #include <vulkan/vulkan.h>
 #endif // ES_VULKAN
->>>>>>> windowing
 
 //
 // OS Specific
@@ -95,7 +92,8 @@
 // Windows
 #ifdef ES_OS_WIN32
 #include <windows.h>
-#pragma comment(lib, "user32.lib")
+#include <windowsx.h> // Input parsing.
+// #pragma comment(lib, "user32.lib")
 #endif
 
 /*=========================*/
@@ -652,7 +650,6 @@ ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a
 ES_API mat4_t mat4_inverse(mat4_t mat);
 
 /*=========================*/
-<<<<<<< HEAD
 // Profiler
 /*=========================*/
 
@@ -665,8 +662,8 @@ typedef struct _es_profile_entry_t {
     u32_t runs; 
 } _es_profile_t;
 
-static _es_profile_t _es_root_profile = {0};
-static _es_profile_t *_es_curr_profile = &_es_root_profile;
+ES_GLOBAL _es_profile_t _es_root_profile;
+ES_GLOBAL _es_profile_t *_es_curr_profile;
 
 ES_API _es_profile_t _es_profile_new(const char *name);
 ES_API void _es_profile_begin(const char *name);
@@ -675,7 +672,8 @@ ES_API void _es_profile_print(const _es_profile_t *prof, usize_t gen);
 ES_API void es_profile_print(void);
 
 #define es_profile(NAME) for (b8_t es_macro_var(i) = ((void) _es_profile_begin(NAME), false); !es_macro_var(i); es_macro_var(i) = true, (void) _es_profile_end())
-=======
+
+/*=========================*/
 // Windowing
 /*=========================*/
 
@@ -772,43 +770,24 @@ typedef enum es_key_t {
     ES_KEY_SUPER_R,
 
     // Symbols.
-    ES_KEY_EXCLAMATION_MARK, // !
-    ES_KEY_QUESTION_MARK,    // ?
-    ES_KEY_PERIOD,           // .
-    ES_KEY_COMMA,            // ,
-    ES_KEY_COLON,            // :
-    ES_KEY_SEMICOLON,        // ;
-    ES_KEY_PLUS,             // +
-    ES_KEY_MINUS,            // -
-    ES_KEY_UNDERSCORE,       // _
-    ES_KEY_EQUAL,            // =
-    ES_KEY_BRACKET_L,        // [
-    ES_KEY_BRACKET_R,        // ]
-    ES_KEY_BRACE_L,          // {
-    ES_KEY_BRACE_R,          // }
-    ES_KEY_PAREN_L,          // ( 
-    ES_KEY_PAREN_R,          // )
-    ES_KEY_TILDE,            // ~
-    ES_KEY_SECTION,          // §
-    ES_KEY_ACUTE,            // ´
-    ES_KEY_APOSTROPHE,       // '
-    ES_KEY_ASTERISK,         // *
-    ES_KEY_GREATER,          // >
-    ES_KEY_LESS,             // <
-    ES_KEY_QUOTE,            // "
-    ES_KEY_HASHTAG,          // #
-    ES_KEY_CURRENCY,         // ¤
-    ES_KEY_PERCENT,          // %
-    ES_KEY_AND,              // &
-    ES_KEY_SLASH,            // /
-    ES_KEY_PIPE,             // |
-    ES_KEY_AT,               // @
-    ES_KEY_DOLLAR,           // $
-    ES_KEY_BACKSLASH,        /* \ */
-    ES_KEY_GRAVE,            // `
-    ES_KEY_CIRCUM,           // ^
+    ES_KEY_SEMICOLON,  // ;
+    ES_KEY_APOSTROPHE, // '
+    ES_KEY_EQUAL,      // =/+
+    ES_KEY_COMMA,      // ,
+    ES_KEY_MINUS,      // -
+    ES_KEY_PERIOD,     // .
+    ES_KEY_SLASH,      // /
+    ES_KEY_GRAVE,      // `
+    ES_KEY_BRACKET_L,  // [
+    ES_KEY_PIPE,       // |
+    ES_KEY_BRACKET_R,  // ]
 
-    ES_KEY_COUNT,
+    // Duplicates.
+    ES_KEY_QUOTE      = ES_KEY_APOSTROPHE,
+    ES_KEY_PLUS       = ES_KEY_EQUAL,
+    ES_KEY_BACKSLASH  = ES_KEY_PIPE,
+
+    ES_KEY_COUNT = ES_KEY_BRACKET_R + 1,
 } es_key_t;
 
 typedef enum es_button_t {
@@ -857,7 +836,6 @@ typedef struct _es_window_t {
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
 ES_API void es_window_free(es_window_t *window);
 ES_API void es_window_poll_events(es_window_t *window);
-ES_API void es_window_resizable(es_window_t *window, b8_t resizable);
 ES_API b8_t es_window_is_open(es_window_t *window);
 ES_API vec2_t es_window_get_size(es_window_t *window);
 ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
@@ -873,8 +851,8 @@ ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
 ES_API LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param);
+ES_API es_key_t _es_window_translate_scancode(u16_t scancode);
 #endif // ES_OS_WIN32
->>>>>>> windowing
 
 /*=========================*/
 // Implementation
@@ -1507,9 +1485,11 @@ mat4_t mat4_inverse(mat4_t mat) {
 }
 
 /*=========================*/
-<<<<<<< HEAD
 // Profiler
 /*=========================*/
+
+_es_profile_t _es_root_profile = {0};
+_es_profile_t *_es_curr_profile = &_es_root_profile;
 
 _es_profile_t _es_profile_new(const char *name) {
     _es_profile_t prof = {
@@ -1563,7 +1543,9 @@ void es_profile_print(void) {
         _es_profile_print(&_es_root_profile.children[i], 0);
     }
     printf("========== End ==========\n");
-=======
+}
+
+/*=========================*/
 // Windowing
 /*=========================*/
 
@@ -1718,8 +1700,9 @@ void es_window_poll_events(es_window_t *window) {
                 XKeyEvent *e = (XKeyEvent *) &ev;
                 KeySym sym;
                 // Pass symbol because it crashed when pressing åäö without passing it into the function.
-                i32_t symbol = 0;
-                Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
+                // i32_t symbol = 0;
+                // Xutf8LookupString(_window->input_context, e, (char *) &symbol, sizeof(KeySym), &sym, NULL);
+                sym = XkbKeycodeToKeysym(_window->display, e->keycode, 0, 0);
                 es_key_t key = _es_window_translate_keysym(sym);
 
                 // Check what event key action was performed.
@@ -1777,21 +1760,6 @@ void es_window_poll_events(es_window_t *window) {
             }
         }
     }
-}
-
-void es_window_resizable(es_window_t *window, b8_t resizable) {
-    _es_window_t *_window = window;
-
-    // Window resizability.
-    XSizeHints hints = {0};
-    if (!resizable) {
-        hints.flags      = PMinSize | PMaxSize;
-    }
-    hints.min_width  = _window->size.x;
-    hints.min_height = _window->size.y;
-    hints.max_width  = _window->size.x;
-    hints.max_height = _window->size.y;
-    XSetWMNormalHints(_window->display, _window->window, &hints);
 }
 
 #ifdef ES_VULKAN
@@ -1907,200 +1875,87 @@ es_key_t _es_window_translate_keysym(KeySym keysym) {
         //     for (u32_t i = 0; i < 10; i++) {
         //         printf("case XK_%c:\n    return ES_KEY_%c;\n", '0' + i, '0' + i);
         //     }
-        case XK_0:
-            return ES_KEY_0;
-        case XK_1:
-            return ES_KEY_1;
-        case XK_2:
-            return ES_KEY_2;
-        case XK_3:
-            return ES_KEY_3;
-        case XK_4:
-            return ES_KEY_4;
-        case XK_5:
-            return ES_KEY_5;
-        case XK_6:
-            return ES_KEY_6;
-        case XK_7:
-            return ES_KEY_7;
-        case XK_8:
-            return ES_KEY_8;
-        case XK_9:
-            return ES_KEY_9;
+        case XK_0: return ES_KEY_0;
+        case XK_1: return ES_KEY_1;
+        case XK_2: return ES_KEY_2;
+        case XK_3: return ES_KEY_3;
+        case XK_4: return ES_KEY_4;
+        case XK_5: return ES_KEY_5;
+        case XK_6: return ES_KEY_6;
+        case XK_7: return ES_KEY_7;
+        case XK_8: return ES_KEY_8;
+        case XK_9: return ES_KEY_9;
 
         // Function keys
         // Generation code:
         //     for (u32_t i = 0; i < 24; i++) {
-        //         printf("case XK_F%d:\n    return ES_KEY_F%d;\n", i + 1, i + 1);
+        //         printf("case XK_F%d: return ES_KEY_F%d;\n", i + 1, i + 1);
         //     }
-        case XK_F1:
-            return ES_KEY_F1;
-        case XK_F2:
-            return ES_KEY_F2;
-        case XK_F3:
-            return ES_KEY_F3;
-        case XK_F4:
-            return ES_KEY_F4;
-        case XK_F5:
-            return ES_KEY_F5;
-        case XK_F6:
-            return ES_KEY_F6;
-        case XK_F7:
-            return ES_KEY_F7;
-        case XK_F8:
-            return ES_KEY_F8;
-        case XK_F9:
-            return ES_KEY_F9;
-        case XK_F10:
-            return ES_KEY_F10;
-        case XK_F11:
-            return ES_KEY_F11;
-        case XK_F12:
-            return ES_KEY_F12;
-        case XK_F13:
-            return ES_KEY_F13;
-        case XK_F14:
-            return ES_KEY_F14;
-        case XK_F15:
-            return ES_KEY_F15;
-        case XK_F16:
-            return ES_KEY_F16;
-        case XK_F17:
-            return ES_KEY_F17;
-        case XK_F18:
-            return ES_KEY_F18;
-        case XK_F19:
-            return ES_KEY_F19;
-        case XK_F20:
-            return ES_KEY_F20;
-        case XK_F21:
-            return ES_KEY_F21;
-        case XK_F22:
-            return ES_KEY_F22;
-        case XK_F23:
-            return ES_KEY_F23;
-        case XK_F24:
-            return ES_KEY_F24;
+        case XK_F1:  return ES_KEY_F1;
+        case XK_F2:  return ES_KEY_F2;
+        case XK_F3:  return ES_KEY_F3;
+        case XK_F4:  return ES_KEY_F4;
+        case XK_F5:  return ES_KEY_F5;
+        case XK_F6:  return ES_KEY_F6;
+        case XK_F7:  return ES_KEY_F7;
+        case XK_F8:  return ES_KEY_F8;
+        case XK_F9:  return ES_KEY_F9;
+        case XK_F10: return ES_KEY_F10;
+        case XK_F11: return ES_KEY_F11;
+        case XK_F12: return ES_KEY_F12;
+        case XK_F13: return ES_KEY_F13;
+        case XK_F14: return ES_KEY_F14;
+        case XK_F15: return ES_KEY_F15;
+        case XK_F16: return ES_KEY_F16;
+        case XK_F17: return ES_KEY_F17;
+        case XK_F18: return ES_KEY_F18;
+        case XK_F19: return ES_KEY_F19;
+        case XK_F20: return ES_KEY_F20;
+        case XK_F21: return ES_KEY_F21;
+        case XK_F22: return ES_KEY_F22;
+        case XK_F23: return ES_KEY_F23;
+        case XK_F24: return ES_KEY_F24;
 
-        case XK_Escape:
-            return ES_KEY_ESC;
-        case XK_Tab:
-            return ES_KEY_TAB;
-        case XK_Return:
-            return ES_KEY_ENTER;
-        case XK_space:
-            return ES_KEY_SPACE;
-        case XK_BackSpace:
-            return ES_KEY_BACKSPACE;
-        case XK_Caps_Lock:
-            return ES_KEY_CAPS_LOCK;
+        case XK_Escape:    return ES_KEY_ESC;
+        case XK_Tab:       return ES_KEY_TAB;
+        case XK_Return:    return ES_KEY_ENTER;
+        case XK_space:     return ES_KEY_SPACE;
+        case XK_BackSpace: return ES_KEY_BACKSPACE;
+        case XK_Caps_Lock: return ES_KEY_CAPS_LOCK;
 
-        case XK_Left:
-            return ES_KEY_LEFT;
-        case XK_Down:
-            return ES_KEY_DOWN;
-        case XK_Up:
-            return ES_KEY_UP;
-        case XK_Right:
-            return ES_KEY_RIGHT;
+        case XK_Left:  return ES_KEY_LEFT;
+        case XK_Down:  return ES_KEY_DOWN;
+        case XK_Up:    return ES_KEY_UP;
+        case XK_Right: return ES_KEY_RIGHT;
 
         // Mod keys.
-        case XK_Shift_L:
-            return ES_KEY_SHIFT_L;
-        case XK_Shift_R:
-            return ES_KEY_SHIFT_R;
-        case XK_Control_L:
-            return ES_KEY_CTRL_L;
-        case XK_Control_R:
-            return ES_KEY_CTRL_R;
-        case XK_Alt_L:
-            return ES_KEY_ALT_L;
-        case XK_Alt_R:
-            return ES_KEY_ALT_R;
-        case XK_Super_L:
-            return ES_KEY_SUPER_L;
-        case XK_Super_R:
-            return ES_KEY_SUPER_R;
+        case XK_Shift_L:   return ES_KEY_SHIFT_L;
+        case XK_Shift_R:   return ES_KEY_SHIFT_R;
+        case XK_Control_L: return ES_KEY_CTRL_L;
+        case XK_Control_R: return ES_KEY_CTRL_R;
+        case XK_Alt_L:     return ES_KEY_ALT_L;
+        case XK_Alt_R:     return ES_KEY_ALT_R;
+        case XK_Super_L:   return ES_KEY_SUPER_L;
+        case XK_Super_R:   return ES_KEY_SUPER_R;
 
         // Symbols.
-        case XK_exclam:
-            return ES_KEY_EXCLAMATION_MARK;
-        case XK_question:
-            return ES_KEY_QUESTION_MARK;
-        case XK_period:
-            return ES_KEY_PERIOD;
-        case XK_comma:
-            return ES_KEY_COMMA;
-        case XK_colon:
-            return ES_KEY_COLON;
-        case XK_semicolon:
-            return ES_KEY_SEMICOLON;
-        case XK_plus:
-            return ES_KEY_PLUS;
-        case XK_minus:
-            return ES_KEY_MINUS;
-        case XK_underscore:
-            return ES_KEY_UNDERSCORE;
-        case XK_equal:
-            return ES_KEY_EQUAL;
-        case XK_bracketleft:
-            return ES_KEY_BRACKET_L;
-        case XK_bracketright:
-            return ES_KEY_BRACKET_R;
-        case XK_braceleft:
-            return ES_KEY_BRACE_L;
-        case XK_braceright:
-            return ES_KEY_BRACE_R;
-        case XK_parenleft:
-            return ES_KEY_PAREN_L;
-        case XK_parenright:
-            return ES_KEY_PAREN_R;
-        case XK_dead_tilde:
-        case XK_asciitilde:
-            return ES_KEY_TILDE;
-        case XK_section:
-            return ES_KEY_SECTION;
-        case XK_acute:
-        case XK_dead_acute:
-            return ES_KEY_ACUTE;
-        case XK_apostrophe:
-            return ES_KEY_APOSTROPHE;
-        case XK_asterisk:
-            return ES_KEY_ASTERISK;
-        case XK_greater:
-            return ES_KEY_GREATER;
-        case XK_less:
-            return ES_KEY_LESS;
-        case XK_quotedbl:
-            return ES_KEY_QUOTE;
-        case XK_numbersign:
-            return ES_KEY_HASHTAG;
-        case XK_currency:
-            return ES_KEY_CURRENCY;
-        case XK_percent:
-            return ES_KEY_PERCENT;
-        case XK_ampersand:
-            return ES_KEY_AND;
-        case XK_slash:
-            return ES_KEY_SLASH;
-        case XK_bar:
-            return ES_KEY_PIPE;
-        case XK_at:
-            return ES_KEY_AT;
-        case XK_dollar:
-            return ES_KEY_DOLLAR;
-        case XK_backslash:
-            return ES_KEY_BACKSLASH;
+        case XK_period:       return ES_KEY_PERIOD;
+        case XK_comma:        return ES_KEY_COMMA;
+        case XK_semicolon:    return ES_KEY_SEMICOLON;
+        case XK_plus:         return ES_KEY_PLUS;
+        case XK_minus:        return ES_KEY_MINUS;
+        case XK_equal:        return ES_KEY_EQUAL;
+        case XK_bracketleft:  return ES_KEY_BRACKET_L;
+        case XK_bracketright: return ES_KEY_BRACKET_R;
+        case XK_apostrophe:   return ES_KEY_APOSTROPHE;
+        case XK_quotedbl:     return ES_KEY_QUOTE;
+        case XK_slash:        return ES_KEY_SLASH;
+        case XK_bar:          return ES_KEY_PIPE;
+        case XK_backslash:    return ES_KEY_BACKSLASH;
         case XK_dead_grave:
-        case XK_grave:
-            return ES_KEY_GRAVE;
-        case XK_dead_circumflex:
-        case XK_asciicircum:
-            return ES_KEY_CIRCUM;
+        case XK_grave: return ES_KEY_GRAVE;
 
-        default:
-            /* printf("0x%lx\n", keysym); */
-            return ES_KEY_NULL;
+        default: return ES_KEY_NULL;
     }
 }
 #endif // ES_OS_LINUX
@@ -2206,17 +2061,218 @@ LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param
             return 0;
         }
         case WM_SIZE: {
-            RECT r;
-            GetClientRect(hwnd, &r);
-            window->size.x = r.right - r.left;
-            window->size.y = r.bottom - r.top;
             if (window->resize_callback != NULL) {
+                RECT r;
+                GetClientRect(hwnd, &r);
+                window->size.x = r.right - r.left;
+                window->size.y = r.bottom - r.top;
                 window->resize_callback(window, window->size.x, window->size.y);
             }
         } break;
+
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP: {
+            es_key_action_t action = (msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN);
+            es_button_t button = ES_BUTTON_COUNT;
+            switch (msg)
+            {
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+                button = ES_BUTTON_LEFT;
+                break;
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP:
+                button = ES_BUTTON_MIDDLE;
+                break;
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+                button = ES_BUTTON_RIGHT;
+                break;
+            }
+            if (button != ES_BUTTON_COUNT && window->mouse_button_callback != NULL) {
+                window->mouse_button_callback(window, button, action);
+            }
+        } break;
+
+        case WM_MOUSEWHEEL: {
+            if (window->scroll_callback != NULL) {
+                i32_t offset = GET_WHEEL_DELTA_WPARAM(w_param);
+                if (offset == 0) {
+                    break;
+                }
+                offset = (offset < 0) ? -1 : 1;
+                window->scroll_callback(window, offset);
+            }
+        } break;
+
+        case WM_MOUSEMOVE: {
+            if (window->cursor_position_callback != NULL) {
+                i32_t x = GET_X_LPARAM(l_param);
+                i32_t y = GET_Y_LPARAM(l_param);
+                window->cursor_position_callback(window, x, y);
+            }
+        } break;
+
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP: {
+            es_key_action_t action = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+            es_key_t key = (u16_t) w_param;
+            key = _es_window_translate_scancode(key);
+
+            // Check for extended scan code.
+            b8_t is_extended = (HIWORD(l_param) & KF_EXTENDED) == KF_EXTENDED;
+
+            if (w_param == VK_MENU) {
+                key = is_extended ? ES_KEY_ALT_R : ES_KEY_ALT_L;
+            } else if (w_param == VK_SHIFT) {
+                u32_t left_shift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
+                u32_t scancode = ((l_param & (0xFF << 16)) >> 16);
+                key = scancode == left_shift ? ES_KEY_SHIFT_L : ES_KEY_SHIFT_R;
+            } else if (w_param == VK_CONTROL) {
+                key = is_extended ? ES_KEY_CTRL_R : ES_KEY_CTRL_L;
+            }
+
+            if (window->key_callback != NULL && key != ES_KEY_NULL) {
+                window->key_callback(window, key, 0, action);
+            }
+
+            // Prevent default windows behavior.
+            return 1;
+        }
     }
 
     return DefWindowProcA(hwnd, msg, w_param, l_param);
+}
+
+#ifdef ES_VULKAN
+VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance) {
+    VkSurfaceKHR surface;
+
+    const _es_window_t *_window = window;
+
+    VkWin32SurfaceCreateInfoKHR surface_create_info = {0};
+    surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    surface_create_info.pNext = NULL;
+    surface_create_info.flags = 0;
+    surface_create_info.hinstance = _window->instance;
+    surface_create_info.hwnd = _window->window;
+
+    VkResult result = vkCreateXlibSurfaceKHR(instance, &surface_create_info, NULL, &surface);
+    if (result != VK_SUCCESS) {
+        return NULL;
+    }
+
+    return surface;
+}
+#endif // ES_VULKAN
+
+es_key_t _es_window_translate_scancode(u16_t scancode) {
+    switch (scancode)
+    {
+        case 0x41: return ES_KEY_A;
+        case 0x42: return ES_KEY_B;
+        case 0x43: return ES_KEY_C;
+        case 0x44: return ES_KEY_D;
+        case 0x45: return ES_KEY_E;
+        case 0x46: return ES_KEY_F;
+        case 0x47: return ES_KEY_G;
+        case 0x48: return ES_KEY_H;
+        case 0x49: return ES_KEY_I;
+        case 0x4a: return ES_KEY_J;
+        case 0x4b: return ES_KEY_K;
+        case 0x4c: return ES_KEY_L;
+        case 0x4d: return ES_KEY_M;
+        case 0x4e: return ES_KEY_N;
+        case 0x4f: return ES_KEY_O;
+        case 0x50: return ES_KEY_P;
+        case 0x51: return ES_KEY_Q;
+        case 0x52: return ES_KEY_R;
+        case 0x53: return ES_KEY_S;
+        case 0x54: return ES_KEY_T;
+        case 0x55: return ES_KEY_U;
+        case 0x56: return ES_KEY_V;
+        case 0x57: return ES_KEY_W;
+        case 0x58: return ES_KEY_X;
+        case 0x59: return ES_KEY_Y;
+        case 0x5a: return ES_KEY_Z;
+
+        case 0x30: return ES_KEY_0;
+        case 0x31: return ES_KEY_1;
+        case 0x32: return ES_KEY_2;
+        case 0x33: return ES_KEY_3;
+        case 0x34: return ES_KEY_4;
+        case 0x35: return ES_KEY_5;
+        case 0x36: return ES_KEY_6;
+        case 0x37: return ES_KEY_7;
+        case 0x38: return ES_KEY_8;
+        case 0x39: return ES_KEY_9;
+
+        case 0x70: return ES_KEY_F1;
+        case 0x71: return ES_KEY_F2;
+        case 0x72: return ES_KEY_F3;
+        case 0x73: return ES_KEY_F4;
+        case 0x74: return ES_KEY_F5;
+        case 0x75: return ES_KEY_F6;
+        case 0x76: return ES_KEY_F7;
+        case 0x77: return ES_KEY_F8;
+        case 0x78: return ES_KEY_F9;
+        case 0x79: return ES_KEY_F10;
+        case 0x7a: return ES_KEY_F11;
+        case 0x7b: return ES_KEY_F12;
+        case 0x7c: return ES_KEY_F13;
+        case 0x7d: return ES_KEY_F14;
+        case 0x7e: return ES_KEY_F15;
+        case 0x7f: return ES_KEY_F16;
+        case 0x80: return ES_KEY_F17;
+        case 0x81: return ES_KEY_F18;
+        case 0x82: return ES_KEY_F19;
+        case 0x83: return ES_KEY_F20;
+        case 0x84: return ES_KEY_F21;
+        case 0x85: return ES_KEY_F22;
+        case 0x86: return ES_KEY_F23;
+        case 0x87: return ES_KEY_F24;
+
+        case 0x1b: return ES_KEY_ESC;
+        case 0x9:  return ES_KEY_TAB;
+        case 0x0d: return ES_KEY_ENTER;
+        case 0x20: return ES_KEY_SPACE;
+        case 0x8:  return ES_KEY_BACKSPACE;
+        case 0x14: return ES_KEY_CAPS_LOCK;
+
+        case 0x25: return ES_KEY_LEFT;
+        case 0x28: return ES_KEY_DOWN;
+        case 0x26: return ES_KEY_UP;
+        case 0x27: return ES_KEY_RIGHT;
+
+        case 0xa0: return ES_KEY_SHIFT_L;
+        case 0xa1: return ES_KEY_SHIFT_R;
+        case 0xa2: return ES_KEY_CTRL_L;
+        case 0xa3: return ES_KEY_CTRL_R;
+        case 0xa4: return ES_KEY_ALT_L;
+        case 0xa5: return ES_KEY_ALT_R;
+        case 0x5b: return ES_KEY_SUPER_L;
+        case 0x5c: return ES_KEY_SUPER_R;
+
+        case 0x3b: return ES_KEY_SEMICOLON;
+        case 0xde: return ES_KEY_APOSTROPHE;
+        case 0xbb: return ES_KEY_EQUAL;
+        case 0xbc: return ES_KEY_COMMA;
+        case 0xbd: return ES_KEY_MINUS;
+        case 0xbe: return ES_KEY_PERIOD;
+        case 0xbf: return ES_KEY_SLASH;
+        case 0xc0: return ES_KEY_GRAVE;
+        case 0xdb: return ES_KEY_BRACKET_L;
+        case 0xdc: return ES_KEY_PIPE;
+        case 0xdd: return ES_KEY_BRACKET_R;
+
+        default: return ES_KEY_NULL;
+    }
 }
 #endif // ES_OS_WIN32
 
@@ -2261,7 +2317,6 @@ void es_window_set_cursor_position_callback(es_window_t *window, es_window_curso
 void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback) {
     _es_window_t *_window = window;
     _window->scroll_callback = callback;
->>>>>>> windowing
 }
 #endif /*ES_IMPL*/
 #endif // ES_H
