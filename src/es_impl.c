@@ -1209,11 +1209,11 @@ LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param
             return 0;
         }
         case WM_SIZE: {
-            RECT r;
-            GetClientRect(hwnd, &r);
-            window->size.x = r.right - r.left;
-            window->size.y = r.bottom - r.top;
             if (window->resize_callback != NULL) {
+                RECT r;
+                GetClientRect(hwnd, &r);
+                window->size.x = r.right - r.left;
+                window->size.y = r.bottom - r.top;
                 window->resize_callback(window, window->size.x, window->size.y);
             }
         } break;
@@ -1243,6 +1243,25 @@ LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param
             }
             if (button != ES_BUTTON_COUNT && window->mouse_button_callback != NULL) {
                 window->mouse_button_callback(window, button, action);
+            }
+        } break;
+
+        case WM_MOUSEWHEEL: {
+            if (window->scroll_callback != NULL) {
+                i32_t offset = GET_WHEEL_DELTA_WPARAM(w_param);
+                if (offset == 0) {
+                    break;
+                }
+                offset = (offset < 0) ? -1 : 1;
+                window->scroll_callback(window, offset);
+            }
+        } break;
+
+        case WM_MOUSEMOVE: {
+            if (window->cursor_position_callback != NULL) {
+                i32_t x = GET_X_LPARAM(l_param);
+                i32_t y = GET_Y_LPARAM(l_param);
+                window->cursor_position_callback(window, x, y);
             }
         } break;
 

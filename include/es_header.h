@@ -89,6 +89,7 @@
 // Windows
 #ifdef ES_OS_WIN32
 #include <windows.h>
+#include <windowsx.h> // Input parsing.
 // #pragma comment(lib, "user32.lib")
 #endif
 
