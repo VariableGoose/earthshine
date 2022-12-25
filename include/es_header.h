@@ -939,6 +939,27 @@ ES_API void es_memset(void *dest, i32_t c, usize_t len);
 ES_API i32_t es_memcmp(const void *a, const void *b, usize_t len);
 
 /*=========================*/
+// Unit testing
+/*=========================*/
+
+typedef struct {
+    b8_t success;
+    u32_t line;
+    const char *file;
+    const char *func;
+} es_unit_result_t;
+
+typedef es_unit_result_t (*es_unit_func_t)(const char *);
+
+#ifdef ES_OS_LINUX
+#define es_unit(N) extern es_unit_result_t es_unit_test_##N(const char *func_name); es_unit_result_t es_unit_test_##N(const char *func_name)
+#endif // ES_OS_LINUX
+#define es_unit_fail() return (es_unit_result_t) { false, __LINE__, __FILE__, func_name };
+#define es_unit_success() return (es_unit_result_t) { true, __LINE__, __FILE__, func_name };
+
+ES_API void es_unit_test(es_da(const char *) source_files, const char *library_file);
+
+/*=========================*/
 // Implementation
 /*=========================*/
 

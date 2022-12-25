@@ -571,7 +571,7 @@ usize_t es_cstr_len(const char *str) {
 }
 
 i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len) {
-    while (len--) {
+    while (len-- - 1) {
         if (*a != *b) {
             break;
         }
@@ -1710,4 +1710,68 @@ i32_t es_memcmp(const void *a, const void *b, usize_t len) {
     }
 
     return 0;
+}
+
+/*=========================*/
+// Unit testing
+/*=========================*/
+
+void es_unit_test(es_da(const char *) source_files, const char *library_file) {
+    es_da(es_str_t) func_names = NULL;
+
+    // Find all function names.
+    for (usize_t i = 0; i < es_da_count(source_files); i++) {
+        es_str_t content = es_file_read(source_files[i]);
+        if (!es_str_valid(content)) {
+            printf("Couldn't read source file '%s'.\n", source_files[i]);
+            return;
+        }
+
+        char *c = content;
+        while (*c) {
+            if (*c == 'e' && es_cstr_cmp_len(c, "es_unit", 7) == 0) {
+                c += 7;
+                // Check if it's a declaration or a return statement.
+                while (es_is_whitespace(*c)) { c++; }
+                if (*c != '(') {
+                    continue;
+                }
+                c++;
+                while (es_is_whitespace(*c)) { c++; }
+                // Parse function name.
+                char *start = c;
+                while (*c != ')' || es_is_whitespace(*c)) { c++; }
+                char *end = c;
+                es_da_push(func_names, es_str_sub_index(content, start - content, end - content));
+            }
+
+            c++;
+        }
+
+        es_str_free(&content);
+    }
+
+    // Call all functions.
+    es_lib_t lib = es_library_init(library_file);
+    if (!lib.valid) {
+        printf("Couldn't open library '%s'\n", library_file);
+        return;
+    }
+
+    for (usize_t i = 0; i < es_da_count(func_names); i++) {
+        es_str_t actual_name = es_str("es_unit_test_");
+        actual_name = es_str_concat(actual_name, func_names[i]);
+        es_lib_func_t func = es_library_function(lib, actual_name);
+        es_str_free(&actual_name);
+        if (!func.valid) {
+            printf("Couldn't load unit '%s' in library '%s'.\n", func_names[i], library_file);
+            continue;
+        }
+        es_unit_result_t result = ((es_unit_func_t) func.func)(func_names[i]);
+        printf("%s:%d:%s: %s\n", result.file, result.line, result.func, result.success ? "success" : "fail");
+    }
+
+    es_library_free(&lib);
+
+    es_da_free(func_names);
 }

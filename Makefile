@@ -4,6 +4,8 @@ IFLAGS := -Isrc -Iinclude
 LFLAGS :=
 DFLAGS :=
 
+UNIT_TESTS := $(wildcard tests/*.c)
+
 ifeq ($(OS), Windows_NT)
 	LFLAGS += -I$(VULKAN_SDK)/Include
 else
@@ -15,3 +17,6 @@ endif
 
 testbed:
 	$(CC) $(CFLAGS) src/testbed.c src/es_impl.c -o bin/testbed $(IFLAGS) $(LFLAGS) $(DFLAGS)
+
+unit_test:
+	$(CC) $(CFLAGS) -shared -fPIC src/es_impl.c $(UNIT_TESTS) -o bin/unit_tests.dll $(IFLAGS) $(LFLAGS) $(DFLAGS)
