@@ -16,7 +16,14 @@ else
 endif
 
 testbed:
+	@mkdir -p bin
 	$(CC) $(CFLAGS) src/testbed.c src/es_impl.c -o bin/testbed $(IFLAGS) $(LFLAGS) $(DFLAGS)
 
-unit_test:
+test: unit_test_dll
+	@mkdir -p bin
+	$(CC) $(CFLAGS) src/unit_tester.c src/es_impl.c -o bin/unit_tester $(IFLAGS) $(LFLAGS) $(DFLAGS)
+	./bin/unit_tester $(UNIT_TESTS) bin/unit_tests.dll
+
+unit_test_dll:
+	@mkdir -p bin
 	$(CC) $(CFLAGS) -shared -fPIC src/es_impl.c $(UNIT_TESTS) -o bin/unit_tests.dll $(IFLAGS) $(LFLAGS) $(DFLAGS)

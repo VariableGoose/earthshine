@@ -150,8 +150,8 @@ void _es_da_resize(void **arr, isize_t count) {
         }
     }
     // Half capacity when half empty and removing
-    else if (count < 0 && head->count + count <= head->cap >> 1) {
-        while (head->count + count >= head->cap >> 1) {
+    else if (count < 0 && head->count + count <= (head->cap >> 1)) {
+        while (head->count + count > (head->cap >> 1) && head->cap > _ES_DA_INIT_CAP) {
             head->cap >>= 1;
         }
     }
@@ -1686,8 +1686,8 @@ void es_library_free(es_lib_t *lib) {
 void es_memcpy(void *dest, const void *src, usize_t len) {
     u8_t *dest_ptr = dest;
     const u8_t *src_ptr  = src;
-    while (len--) {
-        *dest_ptr++ = *src_ptr++;
+    for (usize_t i = 0; i < len; i++) {
+        dest_ptr[i] = src_ptr[i];
     }
 }
 
@@ -1701,12 +1701,10 @@ void es_memset(void *dest, i32_t c, usize_t len) {
 i32_t es_memcmp(const void *a, const void *b, usize_t len) {
     const u8_t *_a = a;
     const u8_t *_b = b;
-    while (len--) {
-        if (*_a != *_b) {
-            return (*_a > *_b ? 1 : -1);
+    for (usize_t i = 0; i < len; i++) {
+        if (_a[i] != _b[i]) {
+            return (_a[i] <= _b[i] ? -1 : 1);
         }
-        _a++;
-        _b++;
     }
 
     return 0;
