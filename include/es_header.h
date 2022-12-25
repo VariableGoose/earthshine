@@ -571,6 +571,10 @@ ES_API usize_t es_cstr_len(const char *str);
 ES_API i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len);
 ES_API i32_t es_cstr_cmp(const char *a, const char *b);
 
+ES_API b8_t es_is_whitespace(char c);
+ES_API b8_t es_is_alpha(char c);
+ES_API b8_t es_is_digit(char c);
+
 /*=========================*/
 // Filesystem
 /*=========================*/

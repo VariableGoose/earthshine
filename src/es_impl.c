@@ -596,6 +596,18 @@ i32_t es_cstr_cmp(const char *a, const char *b) {
     return *(const u8_t *) a - *(const u8_t *) b;
 }
 
+b8_t es_is_whitespace(char c) {
+    return (c == ' ' || c == '\t' || c == '\f' || c == '\r' || c == '\n');
+}
+
+b8_t es_is_alpha(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+b8_t es_is_digit(char c) {
+    return (c >= '0' && c <= '9');
+}
+
 /*=========================*/
 // Filesystem
 /*=========================*/
