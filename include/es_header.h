@@ -522,7 +522,6 @@ typedef struct es_mutex_t {
 #ifdef ES_OS_WIN32
     HANDLE handle;
 #endif // ES_OS_WIN32
-
 } es_mutex_t;
 
 ES_API es_thread_t es_thread(es_thread_proc_t proc, void *arg);
