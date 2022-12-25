@@ -522,7 +522,6 @@ typedef struct es_mutex_t {
 #ifdef ES_OS_WIN32
     HANDLE handle;
 #endif // ES_OS_WIN32
-
 } es_mutex_t;
 
 ES_API es_thread_t es_thread(es_thread_proc_t proc, void *arg);
@@ -1318,7 +1317,7 @@ void es_thread_wait(es_thread_t thread) {
 
 es_mutex_t es_mutex_init(void) {
     es_mutex_t mutex = {0};
-    pthread_mutex_init(&mutex.handle, NULL);
+    mutex.handle = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
     return mutex;
 }
 void es_mutex_free(es_mutex_t *mutex)   { pthread_mutex_destroy(&mutex->handle); }
