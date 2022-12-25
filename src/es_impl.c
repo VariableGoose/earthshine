@@ -1,11 +1,5 @@
 #include "es_header.h"
 
-#include <malloc.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 /*=========================*/
 // Dynamic array
 /*=========================*/
@@ -40,8 +34,8 @@ void _es_da_insert_impl(void **arr, const void *data, usize_t index) {
     void *src = ptr + (index) * head->size;
     void *dest = ptr + (index + 1) * head->size;
 
-    memcpy(dest, src, (head->count - index) * head->size);
-    memcpy(src, data, head->size);
+    es_memcpy(dest, src, (head->count - index) * head->size);
+    es_memcpy(src, data, head->size);
     head->count++;
 }
 
@@ -55,10 +49,10 @@ void _es_da_remove_impl(void **arr, usize_t index, void *output) {
     void *dest = ptr + (index) * head->size;
 
     if (output) {
-        memcpy(output, dest, head->size);
+        es_memcpy(output, dest, head->size);
     }
 
-    memcpy(dest, src, (head->count - index - 1) * head->size);
+    es_memcpy(dest, src, (head->count - index - 1) * head->size);
 
     _es_da_resize(arr, -1);
     head->count--;
@@ -75,8 +69,8 @@ void _es_da_insert_fast_impl(void **arr, const void *data, usize_t index) {
     void *src = ptr + (index) * head->size;
     void *dest = ptr + head->count * head->size;
 
-    memcpy(dest, src, head->size);
-    memcpy(src, data, head->size);
+    es_memcpy(dest, src, head->size);
+    es_memcpy(src, data, head->size);
     head->count++;
 }
 
@@ -90,10 +84,10 @@ void _es_da_remove_fast_impl(void **arr, usize_t index, void *output) {
     void *dest = ptr + (index) * head->size;
 
     if (output) {
-        memcpy(output, dest, head->size);
+        es_memcpy(output, dest, head->size);
     }
 
-    memcpy(dest, src, head->size);
+    es_memcpy(dest, src, head->size);
 
     _es_da_resize(arr, -1);
     head->count--;
@@ -108,11 +102,11 @@ void _es_da_insert_arr_impl(void **arr, const void *data, usize_t count, usize_t
     void *src = ptr + index * head->size;
     void *dest = ptr + (index + count) * head->size;
 
-    memcpy(dest, src, (head->count - index) * head->size);
+    es_memcpy(dest, src, (head->count - index) * head->size);
     if (data != NULL) {
-        memcpy(src, data, head->size * count);
+        es_memcpy(src, data, head->size * count);
     } else {
-        memset(src, 0, head->size * count);
+        es_memset(src, 0, head->size * count);
     }
     head->count += count;
 }
@@ -127,10 +121,10 @@ void _es_da_remove_arr_impl(void **arr, usize_t count, usize_t index, void *outp
     void *dest = ptr + index * head->size;
 
     if (output != NULL) {
-        memcpy(output, ptr + index * head->size, head->size * count);
+        es_memcpy(output, ptr + index * head->size, head->size * count);
     }
 
-    memcpy(dest, src, (head->count - index - count) * head->size);
+    es_memcpy(dest, src, (head->count - index - count) * head->size);
     _es_da_resize(arr, -count);
 
     head->count -= count;
@@ -228,7 +222,7 @@ usize_t es_hash_str(const char *str) {
     // 32-bit system
     usize_t hash1 = 5381;
     usize_t hash2 = 5381;
-    usize_t i = strlen(str);
+    usize_t i = es_cstr_len(str);
     while (i--) {
         char c= str[i];
         hash1 = ((hash1 << 5) + hash1) ^ c;
@@ -487,7 +481,7 @@ b8_t es_file_write(const char *filepath, const char *content) {
         return false;
     }
 
-    fwrite(content, strlen(content), 1, stream);
+    fwrite(content, es_cstr_len(content), 1, stream);
     fclose(stream);
 
     return true;
@@ -499,7 +493,7 @@ b8_t es_file_append(const char *filepath, const char *content) {
         return false;
     }
 
-    fwrite(content, strlen(content), 1, stream);
+    fwrite(content, es_cstr_len(content), 1, stream);
     fclose(stream);
 
     return true;
@@ -540,7 +534,7 @@ mat3_t mat3_inverse(mat3_t mat) {
     //
 
     f32_t f[3][3];
-    memcpy(f, &mat, sizeof(mat3_t));
+    es_memcpy(f, &mat, sizeof(mat3_t));
 
     f32_t f00 = f[0][0], f01 = f[0][1], f02 = f[0][2];
     f32_t f10 = f[1][0], f11 = f[1][1], f12 = f[1][2];
@@ -579,7 +573,7 @@ mat3_t mat3_inverse(mat3_t mat) {
 
 mat4_t mat4_inverse(mat4_t mat) {
     f32_t f[4][4];
-    memcpy(f, &mat, sizeof(mat4_t));
+    es_memcpy(f, &mat, sizeof(mat4_t));
 
     // Step 1: Matrix of minors
     mat4_t minor;
@@ -644,7 +638,7 @@ void _es_profile_begin(const char *name) {
     b8_t registred = false;
     for (usize_t i = 0; i < es_da_count(_es_curr_profile->children); i++) {
         // Profile already registered.
-        if (strcmp(_es_curr_profile->children[i].name, name) == 0) {
+        if (es_cstr_cmp(_es_curr_profile->children[i].name, name) == 0) {
             _es_curr_profile = &_es_curr_profile->children[i];
             registred = true;
             break;
@@ -1549,3 +1543,126 @@ void es_library_free(es_lib_t *lib) {
     lib->valid = false;
 }
 #endif // ES_OS_WIN32
+
+/*=========================*/
+// Strings
+/*=========================*/
+
+es_str_t es_strn(const char *str, usize_t len) {
+    _es_str_head_t *head = es_malloc(sizeof(_es_str_head_t) + len + 1);
+    head->len = len;
+    head->valid = true;
+
+    es_str_t ptr = _es_str_ptr(head);
+    for (usize_t i = 0; i < len; i++) {
+        ptr[i] = str[i];
+    }
+    ptr[len] = '\0';
+
+    return ptr;
+}
+
+es_str_t es_str(const char *str) {
+    return es_strn(str, es_cstr_len(str));
+}
+
+es_str_t es_str_empty(void) {
+    return es_strn("", 0);
+}
+
+void es_str_free(es_str_t *str) {
+    es_free(_es_str_head(*str));
+    *str = NULL;
+}
+
+b8_t es_str_valid(const es_str_t str) {
+    return _es_str_head(str)->valid;
+}
+
+usize_t es_str_len(const es_str_t str) {
+    return _es_str_head(str)->len;
+}
+
+es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len) {
+    usize_t orig_len = es_str_len(str);
+    str = _es_str_resize(str, len);
+    if (!es_str_valid(str)) {
+        return str;
+    }
+    es_memcpy(str + orig_len, end, len);
+    str[orig_len + len] = '\0';
+    return str;
+}
+
+es_str_t es_str_concat(es_str_t str, const char *end) {
+    return es_str_concat_len(str, end, es_cstr_len(end));
+}
+
+es_str_t es_str_sub_start(es_str_t str, usize_t len) {
+    return es_str_sub_len(str, 0, len);
+}
+
+es_str_t es_str_sub_end(es_str_t str, usize_t len) {
+    return es_str_sub_len(str, es_str_len(str) - len, len);
+}
+
+es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end) {
+    es_assert(start <= end, "Starting index can't be greater than end index.", NULL);
+    return es_str_sub_len(str, start, end - start);
+}
+
+es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len) {
+    es_str_t result = es_strn(str + start, len);
+    return result;
+}
+
+es_str_t _es_str_resize(es_str_t str, usize_t len) {
+    _es_str_head_t *head = _es_str_head(str);
+    _es_str_head_t *new_head = realloc(head, sizeof(_es_str_head_t) + head->len + len);
+    if (new_head == NULL) {
+        head->valid = false;
+    } else {
+        head = new_head;
+        head->len += len;
+    }
+    return _es_str_ptr(head);
+}
+
+usize_t es_cstr_len(const char *str) {
+    usize_t len = 0;
+    while (str[len++ + 1] != '\0');
+    return len;
+}
+
+i32_t es_cstr_cmp(const char *a, const char *b) {
+    return es_memcmp(a, b, es_cstr_len(a));
+}
+
+void es_memcpy(void *dest, const void *src, usize_t len) {
+    u8_t *dest_ptr = dest;
+    const u8_t *src_ptr  = src;
+    while (len--) {
+        *dest_ptr++ = *src_ptr++;
+    }
+}
+
+void es_memset(void *dest, i32_t c, usize_t len) {
+    u8_t *ptr = dest;
+    while (len--) {
+        *ptr++ = (u8_t) c;
+    }
+}
+
+i32_t es_memcmp(const void *a, const void *b, usize_t len) {
+    const u8_t *_a = a;
+    const u8_t *_b = b;
+    while (len--) {
+        if (*_a != *_b) {
+            return (*_a > *_b ? 1 : -1);
+        }
+        _a++;
+        _b++;
+    }
+
+    return 0;
+}

@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.9
+    * Version: 1.10
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -60,10 +60,11 @@
 
 #define _POSIX_C_SOURCE 199309L
 
-#include <string.h>
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
 #ifdef ES_VULKAN
 // Define what surface KHR to use.
@@ -887,6 +888,48 @@ ES_API es_lib_t es_library_init(const char *filepath);
 ES_API es_lib_func_t es_library_function(es_lib_t lib, const char *name);
 // Close dynamically loaded library.
 ES_API void es_library_free(es_lib_t *lib);
+
+/*=========================*/
+// Strings
+/*=========================*/
+
+#define _es_str_head(P) ((_es_str_head_t *) ((u8_t *) P - sizeof(_es_str_head_t)))
+#define _es_str_ptr(H) ((es_str_t) ((u8_t *) H + sizeof(_es_str_head_t)))
+
+typedef struct {
+    usize_t len;
+    b8_t valid;
+} _es_str_head_t;
+typedef char *es_str_t;
+
+ES_API es_str_t es_strn(const char *str, usize_t len);
+ES_API es_str_t es_str(const char *str);
+ES_API es_str_t es_str_empty(void);
+ES_API void es_str_free(es_str_t *str);
+
+ES_API b8_t es_str_valid(const es_str_t str);
+ES_API usize_t es_str_len(const es_str_t str);
+
+ES_API es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len);
+ES_API es_str_t es_str_concat(es_str_t str, const char *end);
+
+ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
+ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
+ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
+ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
+
+ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
+
+ES_API usize_t es_cstr_len(const char *str);
+ES_API i32_t es_cstr_cmp(const char *a, const char *b);
+
+/*=========================*/
+// Memory
+/*=========================*/
+
+ES_API void es_memcpy(void *dest, const void *src, usize_t len);
+ES_API void es_memset(void *dest, i32_t c, usize_t len);
+ES_API i32_t es_memcmp(const void *a, const void *b, usize_t len);
 
 /*=========================*/
 // Implementation
