@@ -568,6 +568,7 @@ ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
 ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
 
 ES_API usize_t es_cstr_len(const char *str);
+ES_API i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len);
 ES_API i32_t es_cstr_cmp(const char *a, const char *b);
 
 /*=========================*/

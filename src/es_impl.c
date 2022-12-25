@@ -570,8 +570,30 @@ usize_t es_cstr_len(const char *str) {
     return len;
 }
 
+i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len) {
+    while (len--) {
+        if (*a != *b) {
+            break;
+        }
+
+        a++;
+        b++;
+    }
+
+    return *(const u8_t *) a - *(const u8_t *) b;
+}
+
 i32_t es_cstr_cmp(const char *a, const char *b) {
-    return es_memcmp(a, b, es_cstr_len(a));
+    while (*a) {
+        if (*a != *b) {
+            break;
+        }
+
+        a++;
+        b++;
+    }
+
+    return *(const u8_t *) a - *(const u8_t *) b;
 }
 
 /*=========================*/
