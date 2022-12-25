@@ -481,9 +481,7 @@ es_str_t es_strn(const char *str, usize_t len) {
     head->valid = true;
 
     es_str_t ptr = _es_str_ptr(head);
-    for (usize_t i = 0; i < len; i++) {
-        ptr[i] = str[i];
-    }
+    es_memcpy(ptr, str, len);
     ptr[len] = '\0';
 
     return ptr;
@@ -503,9 +501,7 @@ es_str_t es_str_reserve(usize_t len) {
     head->valid = true;
 
     es_str_t ptr = _es_str_ptr(head);
-    for (usize_t i = 0; i <= len; i++) {
-        ptr[i] = '\0';
-    }
+    es_memset(ptr, 0, len + 1);
 
     return ptr;
 }
