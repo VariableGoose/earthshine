@@ -472,6 +472,113 @@ void es_mutex_unlock(es_mutex_t *mutex) {
 #endif // ES_OS_WIN32
 
 /*=========================*/
+// Strings
+/*=========================*/
+
+es_str_t es_strn(const char *str, usize_t len) {
+    _es_str_head_t *head = es_malloc(sizeof(_es_str_head_t) + len + 1);
+    head->len = len;
+    head->valid = true;
+
+    es_str_t ptr = _es_str_ptr(head);
+    for (usize_t i = 0; i < len; i++) {
+        ptr[i] = str[i];
+    }
+    ptr[len] = '\0';
+
+    return ptr;
+}
+
+es_str_t es_str(const char *str) {
+    return es_strn(str, es_cstr_len(str));
+}
+
+es_str_t es_str_empty(void) {
+    return es_strn("", 0);
+}
+
+es_str_t es_str_reserve(usize_t len) {
+    _es_str_head_t *head = es_malloc(sizeof(_es_str_head_t) + len + 1);
+    head->len = len;
+    head->valid = true;
+
+    es_str_t ptr = _es_str_ptr(head);
+    for (usize_t i = 0; i <= len; i++) {
+        ptr[i] = '\0';
+    }
+
+    return ptr;
+}
+
+void es_str_free(es_str_t *str) {
+    es_free(_es_str_head(*str));
+    *str = NULL;
+}
+
+b8_t es_str_valid(const es_str_t str) {
+    return _es_str_head(str)->valid;
+}
+
+usize_t es_str_len(const es_str_t str) {
+    return _es_str_head(str)->len;
+}
+
+es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len) {
+    usize_t orig_len = es_str_len(str);
+    str = _es_str_resize(str, len);
+    if (!es_str_valid(str)) {
+        return str;
+    }
+    es_memcpy(str + orig_len, end, len);
+    str[orig_len + len] = '\0';
+    return str;
+}
+
+es_str_t es_str_concat(es_str_t str, const char *end) {
+    return es_str_concat_len(str, end, es_cstr_len(end));
+}
+
+es_str_t es_str_sub_start(es_str_t str, usize_t len) {
+    return es_str_sub_len(str, 0, len);
+}
+
+es_str_t es_str_sub_end(es_str_t str, usize_t len) {
+    return es_str_sub_len(str, es_str_len(str) - len, len);
+}
+
+es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end) {
+    es_assert(start <= end, "Starting index can't be greater than end index.", NULL);
+    return es_str_sub_len(str, start, end - start);
+}
+
+es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len) {
+    es_str_t result = es_strn(str + start, len);
+    return result;
+}
+
+es_str_t _es_str_resize(es_str_t str, usize_t len) {
+    _es_str_head_t *head = _es_str_head(str);
+    _es_str_head_t *new_head = realloc(head, sizeof(_es_str_head_t) + head->len + len);
+    if (new_head == NULL) {
+        head->valid = false;
+    } else {
+        head = new_head;
+        head->len += len;
+    }
+    return _es_str_ptr(head);
+}
+
+usize_t es_cstr_len(const char *str) {
+    usize_t len = 0;
+    while (str[len++ + 1] != '\0');
+    return len;
+}
+
+i32_t es_cstr_cmp(const char *a, const char *b) {
+    return es_memcmp(a, b, es_cstr_len(a));
+}
+
+/*=========================*/
 // Filesystem
 /*=========================*/
 
@@ -499,7 +606,7 @@ b8_t es_file_append(const char *filepath, const char *content) {
     return true;
 }
 
-char *es_file_read(const char *filepath) {
+es_str_t es_file_read(const char *filepath) {
     FILE *stream = fopen(filepath, "rb");
 
     fseek(stream, 0, SEEK_END);
@@ -507,10 +614,8 @@ char *es_file_read(const char *filepath) {
     fseek(stream, 0, SEEK_SET);
 
     // Allocate an extra byte for null terminator.
-    char *buffer = es_malloc(len + 1);
+    es_str_t buffer = es_str_reserve(len);
     fread(buffer, len, 1, stream);
-    // Append null terminator.
-    buffer[len] = '\0';
 
     fclose(stream);
 
@@ -1545,98 +1650,8 @@ void es_library_free(es_lib_t *lib) {
 #endif // ES_OS_WIN32
 
 /*=========================*/
-// Strings
+// Memory
 /*=========================*/
-
-es_str_t es_strn(const char *str, usize_t len) {
-    _es_str_head_t *head = es_malloc(sizeof(_es_str_head_t) + len + 1);
-    head->len = len;
-    head->valid = true;
-
-    es_str_t ptr = _es_str_ptr(head);
-    for (usize_t i = 0; i < len; i++) {
-        ptr[i] = str[i];
-    }
-    ptr[len] = '\0';
-
-    return ptr;
-}
-
-es_str_t es_str(const char *str) {
-    return es_strn(str, es_cstr_len(str));
-}
-
-es_str_t es_str_empty(void) {
-    return es_strn("", 0);
-}
-
-void es_str_free(es_str_t *str) {
-    es_free(_es_str_head(*str));
-    *str = NULL;
-}
-
-b8_t es_str_valid(const es_str_t str) {
-    return _es_str_head(str)->valid;
-}
-
-usize_t es_str_len(const es_str_t str) {
-    return _es_str_head(str)->len;
-}
-
-es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len) {
-    usize_t orig_len = es_str_len(str);
-    str = _es_str_resize(str, len);
-    if (!es_str_valid(str)) {
-        return str;
-    }
-    es_memcpy(str + orig_len, end, len);
-    str[orig_len + len] = '\0';
-    return str;
-}
-
-es_str_t es_str_concat(es_str_t str, const char *end) {
-    return es_str_concat_len(str, end, es_cstr_len(end));
-}
-
-es_str_t es_str_sub_start(es_str_t str, usize_t len) {
-    return es_str_sub_len(str, 0, len);
-}
-
-es_str_t es_str_sub_end(es_str_t str, usize_t len) {
-    return es_str_sub_len(str, es_str_len(str) - len, len);
-}
-
-es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end) {
-    es_assert(start <= end, "Starting index can't be greater than end index.", NULL);
-    return es_str_sub_len(str, start, end - start);
-}
-
-es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len) {
-    es_str_t result = es_strn(str + start, len);
-    return result;
-}
-
-es_str_t _es_str_resize(es_str_t str, usize_t len) {
-    _es_str_head_t *head = _es_str_head(str);
-    _es_str_head_t *new_head = realloc(head, sizeof(_es_str_head_t) + head->len + len);
-    if (new_head == NULL) {
-        head->valid = false;
-    } else {
-        head = new_head;
-        head->len += len;
-    }
-    return _es_str_ptr(head);
-}
-
-usize_t es_cstr_len(const char *str) {
-    usize_t len = 0;
-    while (str[len++ + 1] != '\0');
-    return len;
-}
-
-i32_t es_cstr_cmp(const char *a, const char *b) {
-    return es_memcmp(a, b, es_cstr_len(a));
-}
 
 void es_memcpy(void *dest, const void *src, usize_t len) {
     u8_t *dest_ptr = dest;

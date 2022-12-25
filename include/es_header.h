@@ -535,12 +535,48 @@ ES_API void es_mutex_lock(es_mutex_t *mutex);
 ES_API void es_mutex_unlock(es_mutex_t *mutex);
 
 /*=========================*/
+// Strings
+/*=========================*/
+
+#define _es_str_head(P) ((_es_str_head_t *) ((u8_t *) P - sizeof(_es_str_head_t)))
+#define _es_str_ptr(H) ((es_str_t) ((u8_t *) H + sizeof(_es_str_head_t)))
+
+typedef struct {
+    usize_t len;
+    b8_t valid;
+} _es_str_head_t;
+typedef char *es_str_t;
+
+ES_API es_str_t es_strn(const char *str, usize_t len);
+ES_API es_str_t es_str(const char *str);
+ES_API es_str_t es_str_empty(void);
+ES_API es_str_t es_str_reserve(usize_t len);
+
+ES_API void es_str_free(es_str_t *str);
+
+ES_API b8_t es_str_valid(const es_str_t str);
+ES_API usize_t es_str_len(const es_str_t str);
+
+ES_API es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len);
+ES_API es_str_t es_str_concat(es_str_t str, const char *end);
+
+ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
+ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
+ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
+ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
+
+ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
+
+ES_API usize_t es_cstr_len(const char *str);
+ES_API i32_t es_cstr_cmp(const char *a, const char *b);
+
+/*=========================*/
 // Filesystem
 /*=========================*/
 
 ES_API b8_t es_file_write(const char *filepath, const char *content);
 ES_API b8_t es_file_append(const char *filepath, const char *content);
-ES_API char *es_file_read(const char *filepath);
+ES_API es_str_t es_file_read(const char *filepath);
 ES_API b8_t es_file_exists(const char *filepath);
 
 /*=========================*/
@@ -888,40 +924,6 @@ ES_API es_lib_t es_library_init(const char *filepath);
 ES_API es_lib_func_t es_library_function(es_lib_t lib, const char *name);
 // Close dynamically loaded library.
 ES_API void es_library_free(es_lib_t *lib);
-
-/*=========================*/
-// Strings
-/*=========================*/
-
-#define _es_str_head(P) ((_es_str_head_t *) ((u8_t *) P - sizeof(_es_str_head_t)))
-#define _es_str_ptr(H) ((es_str_t) ((u8_t *) H + sizeof(_es_str_head_t)))
-
-typedef struct {
-    usize_t len;
-    b8_t valid;
-} _es_str_head_t;
-typedef char *es_str_t;
-
-ES_API es_str_t es_strn(const char *str, usize_t len);
-ES_API es_str_t es_str(const char *str);
-ES_API es_str_t es_str_empty(void);
-ES_API void es_str_free(es_str_t *str);
-
-ES_API b8_t es_str_valid(const es_str_t str);
-ES_API usize_t es_str_len(const es_str_t str);
-
-ES_API es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len);
-ES_API es_str_t es_str_concat(es_str_t str, const char *end);
-
-ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
-ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
-ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
-ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
-
-ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
-
-ES_API usize_t es_cstr_len(const char *str);
-ES_API i32_t es_cstr_cmp(const char *a, const char *b);
 
 /*=========================*/
 // Memory

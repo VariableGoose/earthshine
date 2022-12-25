@@ -30,6 +30,14 @@ void scroll_callback(es_window_t *window, i32_t offset) {
 }
 
 i32_t main(void) {
+    es_str_t file_content = es_file_read("es.h");
+    
+    printf("'%s'\n", file_content);
+    
+    es_str_free(&file_content);
+
+    return 0;
+
     es_window_t *window = es_window_init(800, 600, "1", false);
 
     es_window_set_resize_callback(window, resize_callback);
