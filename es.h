@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.8
+    * Version: 1.9
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -87,6 +87,7 @@
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/XKBlib.h>
+#include <dlfcn.h>
 #endif // ES_OS_LINUX
 
 // Windows
@@ -873,6 +874,22 @@ ES_API es_key_t _es_window_translate_scancode(u16_t scancode);
 #endif // ES_OS_WIN32
 
 /*=========================*/
+// Library loading
+/*=========================*/
+
+// Library handle.
+typedef struct es_lib_t { void *handle; b8_t valid; } es_lib_t;
+// Library function.
+typedef struct es_lib_func_t { void (*func)(void); b8_t valid; } es_lib_func_t;
+
+// Dynamically load a library.
+ES_API es_lib_t es_library_init(const char *filepath);
+// Dynamically load a function from a library.
+ES_API es_lib_func_t es_library_function(es_lib_t lib, const char *name);
+// Close dynamically loaded library.
+ES_API void es_library_free(es_lib_t *lib);
+
+/*=========================*/
 // Implementation
 /*=========================*/
 
@@ -1282,7 +1299,6 @@ void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry_size, 
 // Linux
 //
 #ifdef ES_OS_LINUX
-
 es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
     typedef void *(*_es_pthread_proc)(void *);
     es_thread_t thread = 0;
@@ -1315,7 +1331,6 @@ void es_mutex_unlock(es_mutex_t *mutex) { pthread_mutex_unlock(&mutex->handle); 
 // Windows
 //
 #ifdef ES_OS_WIN32
-
 es_thread_t es_thread(es_thread_proc_t proc, void *arg) {
     typedef usize_t (*_es_win32_thread_proc)(void *);
     es_thread_t thread = 0;
@@ -2336,5 +2351,97 @@ void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callbac
     _es_window_t *_window = window;
     _window->scroll_callback = callback;
 }
+
+/*=========================*/
+// Library loading
+/*=========================*/
+
+//
+// Linux
+//
+#ifdef ES_OS_LINUX
+es_lib_t es_library_init(const char *filepath) {
+    es_lib_t lib = {
+        .handle = dlopen(filepath, RTLD_LAZY | RTLD_LOCAL),
+        .valid = true
+    };
+
+    if (lib.handle == NULL) {
+        lib.valid = false;
+    }
+
+    return lib;
+}
+
+es_lib_func_t es_library_function(es_lib_t lib, const char *name) {
+    if (!lib.valid) {
+        return (es_lib_func_t) {0};
+    }
+
+    es_lib_func_t func = { .valid = true };
+    // I'm sorry for this conversion.
+    *(void **) &func.func = dlsym(lib.handle, name);
+
+    if (func.func == NULL) {
+        func.valid = false;
+    }
+
+    return func;
+}
+
+void es_library_free(es_lib_t *lib) {
+    if (!lib->valid) {
+        return;
+    }
+
+    dlclose(lib->handle);
+    lib->handle = NULL;
+    lib->valid = false;
+}
+#endif // ES_OS_LINUX
+
+//
+// Windows
+//
+#ifdef ES_OS_WIN32
+es_lib_t es_library_init(const char *filepath) {
+    es_lib_t lib = {
+        .handle = LoadLibraryA(filepath),
+        .valid = true
+    };
+
+    if (lib.handle == NULL) {
+        lib.valid = false;
+    }
+
+    return lib;
+}
+
+es_lib_func_t es_library_function(const es_lib_t *lib, const char *name) {
+    if (!lib->valid) {
+        return (es_lib_func_t) {0};
+    }
+
+    es_lib_func_t func = { .valid = true };
+    // I'm sorry for this conversion.
+    *(void **) &func.func = GetProcAddress(lib->handle, name);
+
+    if (func.func == NULL) {
+        func.valid = false;
+    }
+
+    return func;
+}
+
+void es_library_free(es_lib_t *lib) {
+    if (!lib->valid) {
+        return;
+    }
+
+    FreeLibrary(lib->handle);
+    lib->handle = NULL;
+    lib->valid = false;
+}
+#endif // ES_OS_WIN32
 #endif /*ES_IMPL*/
 #endif // ES_H
