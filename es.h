@@ -803,14 +803,18 @@ typedef enum es_key_action_t {
     ES_KEY_ACTION_PRESS,
     ES_KEY_ACTION_REPEAT,
 } es_key_action_t;
+
+// Window handle.
 typedef void es_window_t;
 
+// Window callbacks.
 typedef void (*es_window_resize_callback_t)(es_window_t *window, i32_t width, i32_t height);
 typedef void (*es_window_key_callback_t)(es_window_t *window, es_key_t keycode, usize_t mod, es_key_action_t action);
 typedef void (*es_window_mouse_button_callback_t)(es_window_t *window, es_button_t button, es_key_action_t action);
 typedef void (*es_window_cursor_position_callback)(es_window_t *window, i32_t x, i32_t y);
 typedef void (*es_window_scroll_callback)(es_window_t *window, i32_t offset);
 
+// Private window struct.
 typedef struct _es_window_t {
 #ifdef ES_OS_LINUX
     Display *display;
@@ -833,24 +837,38 @@ typedef struct _es_window_t {
     es_window_scroll_callback scroll_callback;
 } _es_window_t;
 
+// Create and initialize a window.
 ES_API es_window_t *es_window_init(i32_t width, i32_t height, const char *title, b8_t resizable);
+// Free everything associated with window.
 ES_API void es_window_free(es_window_t *window);
+// Poll for window events.
 ES_API void es_window_poll_events(es_window_t *window);
+// Check if window is open.
 ES_API b8_t es_window_is_open(es_window_t *window);
+// Retrieve window size.
 ES_API vec2_t es_window_get_size(es_window_t *window);
+// Provide a resize callback to be called when window is resized.
 ES_API void es_window_set_resize_callback(es_window_t *window, es_window_resize_callback_t callback);
+// Provide a key callback to be called when a keyboard key is pressed or released.
 ES_API void es_window_set_key_callback(es_window_t *window, es_window_key_callback_t callback);
+// Provide a mouse button callback to be called when a mouse button is pressed or released.
 ES_API void es_window_set_mouse_button_callback(es_window_t *window, es_window_mouse_button_callback_t callback);
+// Provide a cursor position callback to be called when the cursor position changes.
 ES_API void es_window_set_cursor_position_callback(es_window_t *window, es_window_cursor_position_callback callback);
+// Provide a scroll callback to be called when a scroll event happens.
 ES_API void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_callback callback);
 #ifdef ES_VULKAN
+// Create a vulkan surface for window.
 ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
 #endif // ES_VULKAN
 #ifdef ES_OS_LINUX
+// Internal linus function for translating XLib keysyms to es_key_t.
 ES_API es_key_t _es_window_translate_keysym(KeySym keysym);
 #endif // ES_OS_LINUX
 #ifdef ES_OS_WIN32
+// Internal win32 function for processing window events.
 ES_API LRESULT CALLBACK _es_window_process_message(HWND hwnd, u32_t msg, WPARAM w_param, LPARAM l_param);
+// Internal win32 function for translating keypresses to es_key_t.
 ES_API es_key_t _es_window_translate_scancode(u16_t scancode);
 #endif // ES_OS_WIN32
 
