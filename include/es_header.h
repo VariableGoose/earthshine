@@ -464,6 +464,7 @@ typedef enum _es_hash_table_entry_state_t {
     es_da_push_arr(new_entries, NULL, 8); \
     es_da_free((HT)->entries); \
     (HT)->entries = new_entries; \
+    (HT)->count = 0; \
 } while (0)
 
 // Free allocated memory for hash table.
@@ -515,6 +516,7 @@ ES_API void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry
 /*=========================*/
 // Threading
 /*=========================*/
+
 typedef void (*es_thread_proc_t)(void *arg);
 typedef usize_t es_thread_t;
 typedef struct es_mutex_t {
@@ -565,6 +567,8 @@ ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
 ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
 ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
 ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
+
+ES_API i32_t es_str_cmp(es_str_t str, const char *b);
 
 ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
 

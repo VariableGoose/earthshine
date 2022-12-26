@@ -515,6 +515,9 @@ void es_str_free(es_str_t *str) {
 }
 
 b8_t es_str_valid(const es_str_t str) {
+    if (str == NULL) {
+        return false;
+    }
     return _es_str_head(str)->valid;
 }
 
@@ -547,12 +550,16 @@ es_str_t es_str_sub_end(es_str_t str, usize_t len) {
 
 es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end) {
     es_assert(start <= end, "Starting index can't be greater than end index.", NULL);
-    return es_str_sub_len(str, start, end - start);
+    return es_str_sub_len(str, start, end - start + 1);
 }
 
 es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len) {
     es_str_t result = es_strn(str + start, len);
     return result;
+}
+
+i32_t es_str_cmp(es_str_t str, const char *b) {
+    return es_cstr_cmp_len(str, b, es_str_len(str) + 1);
 }
 
 es_str_t _es_str_resize(es_str_t str, usize_t len) {
@@ -569,8 +576,8 @@ es_str_t _es_str_resize(es_str_t str, usize_t len) {
 
 usize_t es_cstr_len(const char *str) {
     usize_t len = 0;
-    while (str[len++ + 1] != '\0');
-    return len;
+    while (str[len++] != '\0');
+    return len - 1;
 }
 
 i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len) {
@@ -1711,7 +1718,7 @@ void es_unit_test(es_da(const char *) source_files, const char *library_file) {
                 // Parse function name.
                 char *start = c;
                 while (*c != ')' || es_is_whitespace(*c)) { c++; }
-                char *end = c;
+                char *end = c - 1;
                 es_da_push(func_names, es_str_sub_index(content, start - content, end - content));
             }
 
