@@ -593,6 +593,8 @@ ES_API b8_t es_file_exists(const char *filepath);
 // Math
 /*=========================*/
 
+ES_API f32_t es_float_round(f32_t value, i32_t n);
+
 // 2D vector
 typedef struct vec2_t { f32_t x, y; } vec2_t;
 
@@ -957,18 +959,27 @@ ES_API void es_library_free(es_lib_t *lib);
 typedef struct {
     b8_t success;
     u32_t line;
-    const char *file;
+    es_str_t file;
     const char *func;
 } es_unit_result_t;
 
 typedef es_unit_result_t (*es_unit_func_t)(const char *);
 
+typedef struct es_unit_test_t {
+    es_da(es_unit_result_t) success;
+    es_da(es_unit_result_t) fail;
+    es_da(es_unit_result_t) result;
+    es_da(es_str_t) not_found;
+    b8_t valid;
+} es_unit_test_t;
+
 #define es_unit(N) extern es_unit_result_t es_unit_test_##N(const char *func_name); es_unit_result_t es_unit_test_##N(const char *func_name)
-#define es_unit_fail() return (es_unit_result_t) { false, __LINE__, __FILE__, func_name };
-#define es_unit_success() return (es_unit_result_t) { true, __LINE__, __FILE__, func_name };
+#define es_unit_fail() return (es_unit_result_t) { false, __LINE__, es_str(__FILE__), func_name };
+#define es_unit_success() return (es_unit_result_t) { true, __LINE__, es_str(__FILE__), func_name };
 #define es_unit_check(EXPR) do { if (EXPR) { es_unit_success() } else { es_unit_fail(); } } while(0)
 
-ES_API void es_unit_test(es_da(const char *) source_files, const char *library_file);
+ES_API es_unit_test_t es_unit_test(es_da(const char *) source_files, const char *library_file);
+ES_API void es_unit_test_free(es_unit_test_t *test);
 
 /*=========================*/
 // Implementation
@@ -1644,6 +1655,12 @@ b8_t es_file_exists(const char *filepath) {
 /*=========================*/
 // Math
 /*=========================*/
+
+f32_t es_float_round(f32_t value, i32_t n) {
+    f32_t nth = powf(10, n);
+    f32_t rounded = (f32_t) ((i32_t) (value * nth + 0.5f)) / nth;
+    return rounded;
+}
 
 mat3_t mat3_inverse(mat3_t mat) {
     // Implementation based on: https://www.mathsisfun.com/algebra/matrix-inverse-minors-cofactors-adjugate.html
@@ -2667,15 +2684,17 @@ void es_library_free(es_lib_t *lib) {
 // Unit testing
 /*=========================*/
 
-void es_unit_test(es_da(const char *) source_files, const char *library_file) {
+es_unit_test_t es_unit_test(es_da(const char *) source_files, const char *library_file) {
+    es_unit_test_t test = {0};
+    test.valid = true;
+
     es_da(es_str_t) func_names = NULL;
 
     // Find all function names.
     for (usize_t i = 0; i < es_da_count(source_files); i++) {
         es_str_t content = es_file_read(source_files[i]);
         if (!es_str_valid(content)) {
-            printf("Couldn't read source file '%s'.\n", source_files[i]);
-            return;
+            continue;
         }
 
         char *c = content;
@@ -2706,7 +2725,7 @@ void es_unit_test(es_da(const char *) source_files, const char *library_file) {
     es_lib_t lib = es_library_init(library_file);
     if (!lib.valid) {
         printf("Couldn't open library '%s'\n", library_file);
-        return;
+        return test;
     }
 
     for (usize_t i = 0; i < es_da_count(func_names); i++) {
@@ -2715,16 +2734,39 @@ void es_unit_test(es_da(const char *) source_files, const char *library_file) {
         es_lib_func_t func = es_library_function(lib, actual_name);
         es_str_free(&actual_name);
         if (!func.valid) {
-            printf("Couldn't load unit '%s' in library '%s'.\n", func_names[i], library_file);
+            es_da_push(test.not_found, es_str(func_names[i]));
             continue;
         }
         es_unit_result_t result = ((es_unit_func_t) func.func)(func_names[i]);
-        printf("%s%s:%d:%s: %s\033[0m\n", result.success ? "\033[0;92m" : "\033[1;91m", result.file, result.line, result.func, result.success ? "success" : "fail");
+        es_da_push(test.result, result);
+        if (result.success) {
+            es_da_push(test.success, result);
+        } else {
+            es_da_push(test.fail, result);
+        }
     }
 
     es_library_free(&lib);
-
     es_da_free(func_names);
+
+    return test;
+}
+
+void es_unit_test_free(es_unit_test_t *test) {
+    for (usize_t i = 0; i < es_da_count(test->not_found); i++) {
+        es_str_free(&test->not_found[i]);
+    }
+    test->valid = false;
+
+    es_da_free(test->not_found);
+
+    for (u32_t i = 0; i < es_da_count(test->result); i++) {
+        es_str_free(&test->result[i].file);
+    }
+
+    es_da_free(test->success);
+    es_da_free(test->fail);
+    es_da_free(test->result);
 }
 #endif /*ES_IMPL*/
 #endif // ES_H

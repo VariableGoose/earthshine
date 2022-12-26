@@ -593,6 +593,8 @@ ES_API b8_t es_file_exists(const char *filepath);
 // Math
 /*=========================*/
 
+ES_API f32_t es_float_round(f32_t value, i32_t n);
+
 // 2D vector
 typedef struct vec2_t { f32_t x, y; } vec2_t;
 
@@ -957,18 +959,27 @@ ES_API void es_library_free(es_lib_t *lib);
 typedef struct {
     b8_t success;
     u32_t line;
-    const char *file;
+    es_str_t file;
     const char *func;
 } es_unit_result_t;
 
 typedef es_unit_result_t (*es_unit_func_t)(const char *);
 
+typedef struct es_unit_test_t {
+    es_da(es_unit_result_t) success;
+    es_da(es_unit_result_t) fail;
+    es_da(es_unit_result_t) result;
+    es_da(es_str_t) not_found;
+    b8_t valid;
+} es_unit_test_t;
+
 #define es_unit(N) extern es_unit_result_t es_unit_test_##N(const char *func_name); es_unit_result_t es_unit_test_##N(const char *func_name)
-#define es_unit_fail() return (es_unit_result_t) { false, __LINE__, __FILE__, func_name };
-#define es_unit_success() return (es_unit_result_t) { true, __LINE__, __FILE__, func_name };
+#define es_unit_fail() return (es_unit_result_t) { false, __LINE__, es_str(__FILE__), func_name };
+#define es_unit_success() return (es_unit_result_t) { true, __LINE__, es_str(__FILE__), func_name };
 #define es_unit_check(EXPR) do { if (EXPR) { es_unit_success() } else { es_unit_fail(); } } while(0)
 
-ES_API void es_unit_test(es_da(const char *) source_files, const char *library_file);
+ES_API es_unit_test_t es_unit_test(es_da(const char *) source_files, const char *library_file);
+ES_API void es_unit_test_free(es_unit_test_t *test);
 
 /*=========================*/
 // Implementation
