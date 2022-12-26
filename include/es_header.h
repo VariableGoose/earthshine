@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.11
+    * Version: 1.10
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -614,6 +614,9 @@ ES_INLINE vec2_t vec2_normalize(vec2_t vec) { return vec2_muls(vec, 1.0f / vec2_
 ES_INLINE f32_t  vec2_dot(vec2_t a, vec2_t b) { return a.x*b.x + a.y*b.y; }
 ES_INLINE f32_t  vec2_cross(vec2_t a, vec2_t b) { return a.x*b.y - a.y*b.x; }
 
+ES_INLINE b8_t vec2_equal(vec2_t a, vec2_t b) { return a.x == b.x && a.y == b.y; }
+ES_INLINE b8_t vec2_equals(vec2_t a, f32_t s) { return a.x == s   && a.y == s;   }
+
 // 3D vector
 typedef struct vec3_t { f32_t x, y, z; } vec3_t;
 
@@ -641,6 +644,9 @@ ES_INLINE vec3_t vec3_cross(vec3_t a, vec3_t b) {
     );
 }
 
+ES_INLINE b8_t vec3_equal(vec3_t a, vec3_t b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
+ES_INLINE b8_t vec3_equals(vec3_t a, f32_t s) { return a.x == s   && a.y == s   && a.z == s;   }
+
 // 4D vector
 typedef struct vec4_t { f32_t x, y, z, w; } vec4_t;
 
@@ -657,9 +663,12 @@ ES_INLINE vec4_t vec4_divs(vec4_t vec, f32_t s) { return (vec4_t) {vec.x / s, ve
 ES_INLINE vec4_t vec4_adds(vec4_t vec, f32_t s) { return (vec4_t) {vec.x + s, vec.y + s, vec.z + s, vec.w + s}; }
 ES_INLINE vec4_t vec4_subs(vec4_t vec, f32_t s) { return (vec4_t) {vec.x - s, vec.y - s, vec.z - s, vec.w - s}; }
 
-ES_INLINE f32_t vec4_magnitude(vec4_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w); }
-ES_INLINE vec4_t  vec4_normalize(vec4_t vec) { return vec4_muls(vec, 1.0f / vec4_magnitude(vec)); }
-ES_INLINE f32_t vec4_dot(vec4_t a, vec4_t b) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+ES_INLINE f32_t  vec4_magnitude(vec4_t vec) { return sqrtf(vec.x*vec.x + vec.y*vec.y + vec.z*vec.z + vec.w*vec.w); }
+ES_INLINE vec4_t vec4_normalize(vec4_t vec) { return vec4_muls(vec, 1.0f / vec4_magnitude(vec)); }
+ES_INLINE f32_t  vec4_dot(vec4_t a, vec4_t b) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+
+ES_INLINE b8_t vec4_equal(vec4_t a, vec4_t b) { return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w; }
+ES_INLINE b8_t vec4_equals(vec4_t a, f32_t s) { return a.x == s   && a.y == s   && a.z == s   && a.w == s;   }
 
 // 2x2 matrix
 typedef struct mat2_t { vec2_t i, j; } mat2_t;
@@ -673,6 +682,8 @@ ES_INLINE mat2_t mat2_mul(mat2_t a, mat2_t b) { return (mat2_t) { mat2_mulv(b, a
 ES_INLINE f32_t mat2_determinate(mat2_t mat) { return mat.i.x * mat.j.y - mat.j.x * mat.i.y; }
 ES_INLINE mat2_t mat2_inverse(mat2_t mat) { return mat2_muls((mat2_t) {{mat.j.y, -mat.i.y}, {-mat.j.x, mat.i.x}}, 1.0f / mat2_determinate(mat)); }
 
+ES_INLINE b8_t mat2_equal(mat2_t a, mat2_t b) { return vec2_equal(a.i, b.i) && vec2_equal(a.j, b.j); }
+
 // 3x3 matrix
 typedef struct mat3_t { vec3_t i, j, k; } mat3_t;
 
@@ -685,6 +696,8 @@ ES_INLINE mat3_t mat3_mul(mat3_t a, mat3_t b) { return (mat3_t) { mat3_mulv(b, a
 ES_INLINE f32_t mat3_determinate(mat3_t mat) { return mat.i.x * mat2_determinate(mat2f(mat.j.y, mat.j.z, mat.k.y, mat.k.z)) - mat.j.x * mat2_determinate(mat2f(mat.i.y, mat.i.z, mat.k.y, mat.k.z)) + mat.k.x * mat2_determinate(mat2f(mat.i.y, mat.i.z, mat.j.y, mat.j.z)); }
 ES_API mat3_t mat3_inverse(mat3_t mat);
 
+ES_INLINE b8_t mat3_equal(mat3_t a, mat3_t b) { return vec3_equal(a.i, b.i) && vec3_equal(a.j, b.j) && vec3_equal(a.k, b.k); }
+
 // 4x4 matrix
 typedef struct mat4_t { vec4_t i, j, k, l; } mat4_t;
 
@@ -695,6 +708,8 @@ ES_INLINE mat4_t mat4_muls(mat4_t mat, f32_t s) { return (mat4_t) {vec4_muls(mat
 ES_INLINE vec4_t mat4_mulv(mat4_t mat, vec4_t vec) { return vec4_add(vec4_add(vec4_add(vec4_muls(mat.i, vec.x), vec4_muls(mat.j, vec.y)), vec4_muls(mat.k, vec.z)), vec4_muls(mat.l, vec.w)); }
 ES_INLINE mat4_t mat4_mul(mat4_t a, mat4_t b) { return (mat4_t) { mat4_mulv(b, a.i), mat4_mulv(b, a.j), mat4_mulv(b, a.k), mat4_mulv(b, a.l) }; }
 ES_API mat4_t mat4_inverse(mat4_t mat);
+
+ES_INLINE b8_t matw_equal(mat4_t a, mat4_t b) { return vec4_equal(a.i, b.i) && vec4_equal(a.j, b.j) && vec4_equal(a.k, b.k) && vec4_equal(a.l, b.l); }
 
 /*=========================*/
 // Profiler
