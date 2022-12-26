@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.10
+    * Version: 1.11
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved

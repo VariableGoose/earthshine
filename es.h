@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.10
+    * Version: 1.11
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -464,6 +464,7 @@ typedef enum _es_hash_table_entry_state_t {
     es_da_push_arr(new_entries, NULL, 8); \
     es_da_free((HT)->entries); \
     (HT)->entries = new_entries; \
+    (HT)->count = 0; \
 } while (0)
 
 // Free allocated memory for hash table.
@@ -515,6 +516,7 @@ ES_API void _es_hash_table_iter_advance_impl(usize_t state_stride, usize_t entry
 /*=========================*/
 // Threading
 /*=========================*/
+
 typedef void (*es_thread_proc_t)(void *arg);
 typedef usize_t es_thread_t;
 typedef struct es_mutex_t {
@@ -565,6 +567,8 @@ ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
 ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
 ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
 ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
+
+ES_API i32_t es_str_cmp(es_str_t str, const char *b);
 
 ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
 
@@ -1471,6 +1475,9 @@ void es_str_free(es_str_t *str) {
 }
 
 b8_t es_str_valid(const es_str_t str) {
+    if (str == NULL) {
+        return false;
+    }
     return _es_str_head(str)->valid;
 }
 
@@ -1503,12 +1510,16 @@ es_str_t es_str_sub_end(es_str_t str, usize_t len) {
 
 es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end) {
     es_assert(start <= end, "Starting index can't be greater than end index.", NULL);
-    return es_str_sub_len(str, start, end - start);
+    return es_str_sub_len(str, start, end - start + 1);
 }
 
 es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len) {
     es_str_t result = es_strn(str + start, len);
     return result;
+}
+
+i32_t es_str_cmp(es_str_t str, const char *b) {
+    return es_cstr_cmp_len(str, b, es_str_len(str) + 1);
 }
 
 es_str_t _es_str_resize(es_str_t str, usize_t len) {
@@ -1525,8 +1536,8 @@ es_str_t _es_str_resize(es_str_t str, usize_t len) {
 
 usize_t es_cstr_len(const char *str) {
     usize_t len = 0;
-    while (str[len++ + 1] != '\0');
-    return len;
+    while (str[len++] != '\0');
+    return len - 1;
 }
 
 i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len) {
@@ -1602,7 +1613,6 @@ es_str_t es_file_read(const char *filepath) {
     usize_t len = ftell(stream);
     fseek(stream, 0, SEEK_SET);
 
-    // Allocate an extra byte for null terminator.
     es_str_t buffer = es_str_reserve(len);
     fread(buffer, len, 1, stream);
 
@@ -2667,7 +2677,7 @@ void es_unit_test(es_da(const char *) source_files, const char *library_file) {
                 // Parse function name.
                 char *start = c;
                 while (*c != ')' || es_is_whitespace(*c)) { c++; }
-                char *end = c;
+                char *end = c - 1;
                 es_da_push(func_names, es_str_sub_index(content, start - content, end - content));
             }
 

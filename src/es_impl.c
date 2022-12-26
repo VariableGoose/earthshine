@@ -653,7 +653,6 @@ es_str_t es_file_read(const char *filepath) {
     usize_t len = ftell(stream);
     fseek(stream, 0, SEEK_SET);
 
-    // Allocate an extra byte for null terminator.
     es_str_t buffer = es_str_reserve(len);
     fread(buffer, len, 1, stream);
 
