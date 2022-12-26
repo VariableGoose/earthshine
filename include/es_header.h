@@ -65,6 +65,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #ifdef ES_VULKAN
 // Define what surface KHR to use.
@@ -931,14 +932,6 @@ ES_API es_lib_func_t es_library_function(es_lib_t lib, const char *name);
 ES_API void es_library_free(es_lib_t *lib);
 
 /*=========================*/
-// Memory
-/*=========================*/
-
-ES_API void es_memcpy(void *dest, const void *src, usize_t len);
-ES_API void es_memset(void *dest, i32_t c, usize_t len);
-ES_API i32_t es_memcmp(const void *a, const void *b, usize_t len);
-
-/*=========================*/
 // Unit testing
 /*=========================*/
 
@@ -951,11 +944,10 @@ typedef struct {
 
 typedef es_unit_result_t (*es_unit_func_t)(const char *);
 
-#ifdef ES_OS_LINUX
 #define es_unit(N) extern es_unit_result_t es_unit_test_##N(const char *func_name); es_unit_result_t es_unit_test_##N(const char *func_name)
-#endif // ES_OS_LINUX
 #define es_unit_fail() return (es_unit_result_t) { false, __LINE__, __FILE__, func_name };
 #define es_unit_success() return (es_unit_result_t) { true, __LINE__, __FILE__, func_name };
+#define es_unit_check(EXPR) do { if (EXPR) { es_unit_success() } else { es_unit_fail(); } } while(0)
 
 ES_API void es_unit_test(es_da(const char *) source_files, const char *library_file);
 
