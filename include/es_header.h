@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.10
+    * Version: 1.11
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -215,7 +215,7 @@ ES_API void _es_da_remove_arr_impl(void **arr, usize_t count, usize_t index, voi
 ES_API void _es_da_resize(void **arr, isize_t count);
 
 // Get the amount of entries in  dynamic array.
-ES_API usize_t es_da_count(void *arr);
+ES_API usize_t es_da_count(const void *arr);
 
 // Declare dyanmic array.
 #define es_da(T) T *
@@ -261,6 +261,9 @@ ES_API usize_t es_da_count(void *arr);
 
 // Retrieve last item in array.
 #define es_da_last(ARR) (ARR)[es_da_count(ARR) - 1]
+
+// Iterate over a dynamic array.
+#define es_da_iter(DA, I) for (usize_t I = 0; I < es_da_count(DA); i++)
 
 /*=========================*/
 // Assert
@@ -555,22 +558,40 @@ ES_API es_str_t es_str(const char *str);
 ES_API es_str_t es_str_empty(void);
 ES_API es_str_t es_str_reserve(usize_t len);
 
+ES_API es_str_t es_str_u64(u64_t value);
+ES_API es_str_t es_str_u32(u32_t value);
+ES_API es_str_t es_str_u16(u16_t value);
+ES_API es_str_t es_str_u8(u8_t value);
+
+ES_API es_str_t es_str_i64(i64_t value);
+ES_API es_str_t es_str_i32(i32_t value);
+ES_API es_str_t es_str_i16(i16_t value);
+ES_API es_str_t es_str_i8(i8_t value);
+
+ES_API es_str_t es_str_b8(b8_t value);
+
 ES_API void es_str_free(es_str_t *str);
+ES_API void es_str_free_list(es_da(es_str_t) *list);
 
 ES_API b8_t es_str_valid(const es_str_t str);
 ES_API usize_t es_str_len(const es_str_t str);
 
-ES_API es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len);
-ES_API es_str_t es_str_concat(es_str_t str, const char *end);
+ES_API void es_str_concat_len(es_str_t *str, const char *end, usize_t len);
+ES_API void es_str_concat(es_str_t *str, const char *end);
+ES_API void es_str_concat_char(es_str_t *str, char c);
 
-ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
-ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
-ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
-ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
+ES_API void es_str_reverse(es_str_t *str);
+
+ES_API es_str_t es_str_sub_start(const char *str, usize_t len);
+ES_API es_str_t es_str_sub_end(const char *str, usize_t len);
+ES_API es_str_t es_str_sub_index(const char *str, usize_t start, usize_t end);
+ES_API es_str_t es_str_sub_len(const char *str, usize_t start, usize_t len);
+
+ES_API es_da(es_str_t) es_str_split_by_delim(const char *str, char delim);
 
 ES_API i32_t es_str_cmp(es_str_t str, const char *b);
 
-ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
+ES_API void _es_str_resize(es_str_t *str, usize_t len);
 
 ES_API usize_t es_cstr_len(const char *str);
 ES_API i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len);
@@ -980,6 +1001,40 @@ typedef struct es_unit_test_t {
 
 ES_API es_unit_test_t es_unit_test(es_da(const char *) source_files, const char *library_file);
 ES_API void es_unit_test_free(es_unit_test_t *test);
+
+/*=========================*/
+// Logging
+/*=========================*/
+
+typedef es_str_t (*es_format_expander_t)(es_da(es_str_t), va_list);
+typedef struct _es_formatter_t {
+    es_hash_table(const char *, es_format_expander_t) formats;
+    b8_t initialized;
+} _es_formatter_t;
+
+extern _es_formatter_t _es_formatter_g;
+
+ES_API void es_formatter_init(void);
+ES_API void es_formatter_free(void);
+ES_API void es_formatter_add_format(const char *trigger, es_format_expander_t expander);
+
+ES_API es_str_t _es_format(const char *fmt, va_list va_ptr);
+ES_API es_str_t es_format(const char *fmt, ...);
+ES_API void es_log(const char *fmt, ...);
+
+// Expanders.
+ES_API es_str_t es_format_expand(const char *fmt, ...);
+
+// Base types.
+ES_API es_str_t _es_format_expander_u64(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_i64(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_f64(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_b8(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_str(es_da(es_str_t) args, va_list va_ptr);
+// ES types.
+ES_API es_str_t _es_format_expander_vec2(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_vec3(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr);
 
 /*=========================*/
 // Implementation

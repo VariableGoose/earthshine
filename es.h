@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.10
+    * Version: 1.11
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -215,7 +215,7 @@ ES_API void _es_da_remove_arr_impl(void **arr, usize_t count, usize_t index, voi
 ES_API void _es_da_resize(void **arr, isize_t count);
 
 // Get the amount of entries in  dynamic array.
-ES_API usize_t es_da_count(void *arr);
+ES_API usize_t es_da_count(const void *arr);
 
 // Declare dyanmic array.
 #define es_da(T) T *
@@ -261,6 +261,9 @@ ES_API usize_t es_da_count(void *arr);
 
 // Retrieve last item in array.
 #define es_da_last(ARR) (ARR)[es_da_count(ARR) - 1]
+
+// Iterate over a dynamic array.
+#define es_da_iter(DA, I) for (usize_t I = 0; I < es_da_count(DA); i++)
 
 /*=========================*/
 // Assert
@@ -555,22 +558,40 @@ ES_API es_str_t es_str(const char *str);
 ES_API es_str_t es_str_empty(void);
 ES_API es_str_t es_str_reserve(usize_t len);
 
+ES_API es_str_t es_str_u64(u64_t value);
+ES_API es_str_t es_str_u32(u32_t value);
+ES_API es_str_t es_str_u16(u16_t value);
+ES_API es_str_t es_str_u8(u8_t value);
+
+ES_API es_str_t es_str_i64(i64_t value);
+ES_API es_str_t es_str_i32(i32_t value);
+ES_API es_str_t es_str_i16(i16_t value);
+ES_API es_str_t es_str_i8(i8_t value);
+
+ES_API es_str_t es_str_b8(b8_t value);
+
 ES_API void es_str_free(es_str_t *str);
+ES_API void es_str_free_list(es_da(es_str_t) *list);
 
 ES_API b8_t es_str_valid(const es_str_t str);
 ES_API usize_t es_str_len(const es_str_t str);
 
-ES_API es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len);
-ES_API es_str_t es_str_concat(es_str_t str, const char *end);
+ES_API void es_str_concat_len(es_str_t *str, const char *end, usize_t len);
+ES_API void es_str_concat(es_str_t *str, const char *end);
+ES_API void es_str_concat_char(es_str_t *str, char c);
 
-ES_API es_str_t es_str_sub_start(es_str_t str, usize_t len);
-ES_API es_str_t es_str_sub_end(es_str_t str, usize_t len);
-ES_API es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end);
-ES_API es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len);
+ES_API void es_str_reverse(es_str_t *str);
+
+ES_API es_str_t es_str_sub_start(const char *str, usize_t len);
+ES_API es_str_t es_str_sub_end(const char *str, usize_t len);
+ES_API es_str_t es_str_sub_index(const char *str, usize_t start, usize_t end);
+ES_API es_str_t es_str_sub_len(const char *str, usize_t start, usize_t len);
+
+ES_API es_da(es_str_t) es_str_split_by_delim(const char *str, char delim);
 
 ES_API i32_t es_str_cmp(es_str_t str, const char *b);
 
-ES_API es_str_t _es_str_resize(es_str_t str, usize_t len);
+ES_API void _es_str_resize(es_str_t *str, usize_t len);
 
 ES_API usize_t es_cstr_len(const char *str);
 ES_API i32_t es_cstr_cmp_len(const char *a, const char *b, usize_t len);
@@ -982,6 +1003,40 @@ ES_API es_unit_test_t es_unit_test(es_da(const char *) source_files, const char 
 ES_API void es_unit_test_free(es_unit_test_t *test);
 
 /*=========================*/
+// Logging
+/*=========================*/
+
+typedef es_str_t (*es_format_expander_t)(es_da(es_str_t), va_list);
+typedef struct _es_formatter_t {
+    es_hash_table(const char *, es_format_expander_t) formats;
+    b8_t initialized;
+} _es_formatter_t;
+
+extern _es_formatter_t _es_formatter_g;
+
+ES_API void es_formatter_init(void);
+ES_API void es_formatter_free(void);
+ES_API void es_formatter_add_format(const char *trigger, es_format_expander_t expander);
+
+ES_API es_str_t _es_format(const char *fmt, va_list va_ptr);
+ES_API es_str_t es_format(const char *fmt, ...);
+ES_API void es_log(const char *fmt, ...);
+
+// Expanders.
+ES_API es_str_t es_format_expand(const char *fmt, ...);
+
+// Base types.
+ES_API es_str_t _es_format_expander_u64(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_i64(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_f64(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_b8(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_str(es_da(es_str_t) args, va_list va_ptr);
+// ES types.
+ES_API es_str_t _es_format_expander_vec2(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_vec3(es_da(es_str_t) args, va_list va_ptr);
+ES_API es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr);
+
+/*=========================*/
 // Implementation
 /*=========================*/
 
@@ -1159,7 +1214,7 @@ void _es_da_resize(void **arr, isize_t count) {
     *arr = _es_da_ptr(new_head);
 }
 
-usize_t es_da_count(void *arr) {
+usize_t es_da_count(const void *arr) {
     if (arr == NULL) {
         return 0;
     }
@@ -1495,9 +1550,70 @@ es_str_t es_str_reserve(usize_t len) {
     return ptr;
 }
 
+es_str_t es_str_u64(u64_t value) {
+    // Extract numbers.
+    es_str_t final = es_str_empty();
+    for (u64_t i = value; i != 0; i /= 10) {
+        es_str_concat_char(&final, '0' + i % 10);
+    }
+    // Handle 0.
+    if (value == 0) {
+        es_str_concat_char(&final, '0');
+    }
+
+    es_str_reverse(&final);
+
+    return final;
+}
+es_str_t es_str_u32(u32_t value) { return es_str_u64(value); }
+es_str_t es_str_u16(u16_t value) { return es_str_u64(value); }
+es_str_t es_str_u8(u8_t value)   { return es_str_u64(value); }
+
+es_str_t es_str_i64(i64_t value) {
+    es_str_t final = es_str_empty();
+    // Check for negative.
+    b8_t negative = false;
+    if (value < 0) {
+        value = -value;
+        negative = true;
+    }
+
+    // Extract numbers.
+    for (i64_t i = value; i != 0; i /= 10) {
+        es_str_concat_char(&final, '0' + i % 10);
+    }
+    // Handle 0.
+    if (value == 0) {
+        es_str_concat_char(&final, '0');
+    }
+
+    // Append a minus if value is negative.
+    if (negative) {
+        es_str_concat_char(&final, '-');
+    }
+
+    es_str_reverse(&final);
+
+    return final;
+}
+es_str_t es_str_i32(i32_t value) { return es_str_i64(value); }
+es_str_t es_str_i16(i16_t value) { return es_str_i64(value); }
+es_str_t es_str_i8(i8_t value)   { return es_str_i64(value); }
+
+es_str_t es_str_b8(b8_t value) {
+    return es_str(value ? "true" : "false");
+}
+
 void es_str_free(es_str_t *str) {
     es_free(_es_str_head(*str));
     *str = NULL;
+}
+
+void es_str_free_list(es_da(es_str_t) *list) {
+    for (usize_t i = 0; i < es_da_count(*list); i++) {
+        es_str_free(&(*list)[i]);
+    }
+    es_da_free(*list);
 }
 
 b8_t es_str_valid(const es_str_t str) {
@@ -1511,36 +1627,71 @@ usize_t es_str_len(const es_str_t str) {
     return _es_str_head(str)->len;
 }
 
-es_str_t es_str_concat_len(es_str_t str, const char *end, usize_t len) {
-    usize_t orig_len = es_str_len(str);
-    str = _es_str_resize(str, len);
-    if (!es_str_valid(str)) {
-        return str;
+void es_str_concat_len(es_str_t *str, const char *end, usize_t len) {
+    usize_t orig_len = es_str_len(*str);
+    _es_str_resize(str, len);
+    if (!es_str_valid(*str)) {
+        return;
     }
-    memcpy(str + orig_len, end, len);
-    str[orig_len + len] = '\0';
-    return str;
+    memcpy(*str + orig_len, end, len);
+    (*str)[orig_len + len] = '\0';
 }
 
-es_str_t es_str_concat(es_str_t str, const char *end) {
-    return es_str_concat_len(str, end, es_cstr_len(end));
+void es_str_concat(es_str_t *str, const char *end) {
+    es_str_concat_len(str, end, es_cstr_len(end));
 }
 
-es_str_t es_str_sub_start(es_str_t str, usize_t len) {
+void es_str_concat_char(es_str_t *str, char c) {
+    _es_str_resize(str, 1);
+    if (!es_str_valid(*str)) {
+        return;
+    }
+    (*str)[es_str_len(*str) - 1] = c;
+}
+
+void es_str_reverse(es_str_t *str) {
+    usize_t start = 0, end = es_str_len(*str) - 1;
+    while (start < end) {
+        char temp = (*str)[start];
+        (*str)[start] = (*str)[end];
+        (*str)[end] = temp;
+
+        start++;
+        end--;
+    }
+}
+
+es_str_t es_str_sub_start(const char *str, usize_t len) {
     return es_str_sub_len(str, 0, len);
 }
 
-es_str_t es_str_sub_end(es_str_t str, usize_t len) {
-    return es_str_sub_len(str, es_str_len(str) - len, len);
+es_str_t es_str_sub_end(const char *str, usize_t len) {
+    return es_str_sub_len(str, es_cstr_len(str) - len, len);
 }
 
-es_str_t es_str_sub_index(es_str_t str, usize_t start, usize_t end) {
+es_str_t es_str_sub_index(const char *str, usize_t start, usize_t end) {
     es_assert(start <= end, "Starting index can't be greater than end index.", NULL);
     return es_str_sub_len(str, start, end - start + 1);
 }
 
-es_str_t es_str_sub_len(es_str_t str, usize_t start, usize_t len) {
+es_str_t es_str_sub_len(const char *str, usize_t start, usize_t len) {
     es_str_t result = es_strn(str + start, len);
+    return result;
+}
+
+es_da(es_str_t) es_str_split_by_delim(const char *str, char delim) {
+    es_da(es_str_t) result = NULL;
+
+    usize_t start = 0, end;
+    for (usize_t i = 0; i < es_cstr_len(str) + 1; i++) {
+        if (str[i] == delim || str[i] == '\0') {
+            end = i - 1;
+            es_da_push(result, es_str_sub_index(str, start, end));
+            i++;
+            start = i;
+        }
+    }
+
     return result;
 }
 
@@ -1548,16 +1699,17 @@ i32_t es_str_cmp(es_str_t str, const char *b) {
     return es_cstr_cmp_len(str, b, es_str_len(str) + 1);
 }
 
-es_str_t _es_str_resize(es_str_t str, usize_t len) {
-    _es_str_head_t *head = _es_str_head(str);
-    _es_str_head_t *new_head = realloc(head, sizeof(_es_str_head_t) + head->len + len);
+void _es_str_resize(es_str_t *str, usize_t len) {
+    _es_str_head_t *head = _es_str_head(*str);
+    _es_str_head_t *new_head = realloc(head, sizeof(_es_str_head_t) + head->len + len + 1);
     if (new_head == NULL) {
         head->valid = false;
     } else {
         head = new_head;
         head->len += len;
     }
-    return _es_str_ptr(head);
+    *str = _es_str_ptr(head);
+    (*str)[head->len] = '\0';
 }
 
 usize_t es_cstr_len(const char *str) {
@@ -2730,7 +2882,7 @@ es_unit_test_t es_unit_test(es_da(const char *) source_files, const char *librar
 
     for (usize_t i = 0; i < es_da_count(func_names); i++) {
         es_str_t actual_name = es_str("es_unit_test_");
-        actual_name = es_str_concat(actual_name, func_names[i]);
+        es_str_concat(&actual_name, func_names[i]);
         es_lib_func_t func = es_library_function(lib, actual_name);
         es_str_free(&actual_name);
         if (!func.valid) {
@@ -2767,6 +2919,245 @@ void es_unit_test_free(es_unit_test_t *test) {
     es_da_free(test->success);
     es_da_free(test->fail);
     es_da_free(test->result);
+}
+
+/*=========================*/
+// Logging
+/*=========================*/
+
+_es_formatter_t _es_formatter_g = {0};
+
+void es_formatter_init(void) {
+    es_assert(!_es_formatter_g.initialized, "Formatter has already been initialized.", NULL);
+    es_hash_table_string_key(_es_formatter_g.formats);
+    _es_formatter_g.initialized = true;
+
+    es_formatter_add_format("u64", _es_format_expander_u64);
+    es_formatter_add_format("u32", _es_format_expander_u64);
+    es_formatter_add_format("u16", _es_format_expander_u64);
+    es_formatter_add_format("u8",  _es_format_expander_u64);
+
+    es_formatter_add_format("i64", _es_format_expander_i64);
+    es_formatter_add_format("i32", _es_format_expander_i64);
+    es_formatter_add_format("i16", _es_format_expander_i64);
+    es_formatter_add_format("i8",  _es_format_expander_i64);
+
+    es_formatter_add_format("f64", _es_format_expander_f64);
+    es_formatter_add_format("f32", _es_format_expander_f64);
+
+    es_formatter_add_format("str", _es_format_expander_str);
+    es_formatter_add_format("b8",  _es_format_expander_b8);
+
+    es_formatter_add_format("vec2", _es_format_expander_vec2);
+    es_formatter_add_format("vec3", _es_format_expander_vec3);
+    es_formatter_add_format("vec4", _es_format_expander_vec4);
+}
+
+void es_formatter_free(void) {
+    es_assert(_es_formatter_g.initialized, "Formatter hasn't been initialized.", NULL);
+    es_hash_table_free(_es_formatter_g.formats);
+    _es_formatter_g.initialized = false;
+}
+
+void es_formatter_add_format(const char *trigger, es_format_expander_t expander) {
+    es_assert(_es_formatter_g.initialized, "Formatter hasn't been initialized.", NULL);
+    es_hash_table_insert(_es_formatter_g.formats, trigger, expander);
+}
+
+es_str_t _es_format(const char *fmt, va_list va_ptr) {
+    es_assert(_es_formatter_g.initialized, "Formatter hasn't been initialized.", NULL);
+
+    es_str_t final = es_str_empty();
+
+    i32_t i = 0;
+    char c = fmt[i];
+    i32_t start, end;
+    b8_t escape = false;
+    while ((c = fmt[i++])) {
+        if (c == '\\') {
+            escape = true;
+            c = fmt[i++];
+        }
+        if (c == '{' && !escape) {
+            i++;
+            start = i - 1;
+            while ((c = fmt[i]) && c != '}') {
+                i++;
+            }
+            end = i - 1;
+            // Skip the trailing '}'.
+            i++;
+
+            es_str_t format = es_str_sub_index(fmt, start, end);
+            es_da(es_str_t) format_list = es_str_split_by_delim(format, ' ');
+            es_str_free(&format);
+            es_da_remove(format_list, 0, &format);
+
+            es_format_expander_t expander = es_hash_table_get(_es_formatter_g.formats, format);
+            es_assert(expander != NULL, "No expander for '%s' formatting.", format);
+            es_str_t expanded = expander(format_list, va_ptr);
+
+            es_str_concat_len(&final, expanded, es_str_len(expanded));
+            es_str_free(&format);
+            es_str_free(&expanded);
+            es_str_free_list(&format_list);
+        } else {
+            es_str_concat_char(&final, c);
+        }
+
+        escape = false;
+    }
+
+    return final;
+}
+
+es_str_t es_format(const char *fmt, ...) {
+    va_list ptr;
+    va_start(ptr, fmt);
+    es_str_t result = _es_format(fmt, ptr);
+    va_end(ptr);
+    return result;
+}
+
+void es_log(const char *fmt, ...) {
+    va_list ptr;
+    va_start(ptr, fmt);
+    es_str_t final = _es_format(fmt, ptr);
+    va_end(ptr);
+    printf("%s", final);
+    es_str_free(&final);
+}
+
+es_str_t es_format_expand(const char *fmt, ...) {
+    char buff[4096];
+
+    va_list ptr;
+    va_start(ptr, fmt);
+
+    es_str_t formatted = _es_format(fmt, ptr);
+
+    vsnprintf(buff, 4096, formatted, ptr);
+    va_end(ptr);
+
+    return es_str(buff);
+}
+
+es_str_t _es_format_expander_u64(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) < 2, "u64 formatting only takes 0 or 1 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("%%%su", args[0]);
+    } else {
+        format = es_str("%u");
+    }
+    u64_t value = va_arg(va_ptr, u64_t);
+    es_str_t expanded = es_format_expand(format, value);
+    es_str_free(&format);
+    return expanded;
+}
+
+es_str_t _es_format_expander_i64(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) < 2, "i64 formatting only takes 0 or 1 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("%%%sd", args[0]);
+    } else {
+        format = es_str("%d");
+    }
+    i64_t value = va_arg(va_ptr, i64_t);
+    es_str_t expanded = es_format_expand(format, value);
+    es_str_free(&format);
+    return expanded;
+}
+
+es_str_t _es_format_expander_f64(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) < 2, "f64 formatting only takes 0 or 1 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("%%%sf", args[0]);
+    } else {
+        format = es_str("%f");
+    }
+    f64_t value = va_arg(va_ptr, f64_t);
+    es_str_t expanded = es_format_expand(format, value);
+    es_str_free(&format);
+    return expanded;
+}
+
+es_str_t _es_format_expander_b8(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) == 0, "b8 formatting doesn't take any arguments.", NULL);
+
+    b8_t value = va_arg(va_ptr, u32_t);
+    return es_str(value ? "true" : "false");
+}
+
+es_str_t _es_format_expander_str(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) < 2, "str formatting only takes 0 or 1 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("%%%ss", args[0]);
+    } else {
+        format = es_str("%s");
+    }
+    const char *value = va_arg(va_ptr, const char *);
+    es_str_t expanded = es_format_expand(format, value);
+    es_str_free(&format);
+    return expanded;
+}
+
+es_str_t _es_format_expander_vec2(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) <= 2 , "vec2 formatting only takes 0, 1 or 2 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("(\\{f32 {str}}, \\{f32 {str}})", args[0], args[0]);
+    } else if (es_da_count(args) == 2) {
+        format = es_format_expand("(\\{f32 {str}}, \\{f32 {str}})", args[0], args[1]);
+    } else {
+        format = es_str("({f32}, {f32})");
+    }
+    vec2_t value = va_arg(va_ptr, vec2_t);
+    es_str_t expanded = es_format_expand(format, value.x, value.y);
+    es_str_free(&format);
+    return expanded;
+}
+
+es_str_t _es_format_expander_vec3(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) < 2 || es_da_count(args) == 3, "vec2 formatting only takes 0, 1 or 3 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("(\\{f32 {str}}, \\{f32 {str}}, \\{f32 {str}})", args[0], args[0], args[0]);
+    } else if (es_da_count(args) == 3) {
+        format = es_format_expand("(\\{f32 {str}}, \\{f32 {str}}, \\{f32 {str}})", args[0], args[1], args[2]);
+    } else {
+        format = es_str("({f32}, {f32}, {f32})");
+    }
+    vec3_t value = va_arg(va_ptr, vec3_t);
+    es_str_t expanded = es_format_expand(format, value.x, value.y, value.z);
+    es_str_free(&format);
+    return expanded;
+}
+
+es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr) {
+    es_assert(es_da_count(args) < 2 || es_da_count(args) == 4, "vec2 formatting only takes 0, 1 or 4 arguments.", NULL);
+
+    es_str_t format = NULL;
+    if (es_da_count(args) == 1) {
+        format = es_format_expand("(\\{f32 {str}}, \\{f32 {str}}, \\{f32 {str}}, \\{f32 {str}})", args[0], args[0], args[0], args[0]);
+    } else if (es_da_count(args) == 4) {
+        format = es_format_expand("(\\{f32 {str}}, \\{f32 {str}}, \\{f32 {str}}, \\{f32 {str}})", args[0], args[1], args[2], args[3]);
+    } else {
+        format = es_str("({f32}, {f32}, {f32})");
+    }
+    vec3_t value = va_arg(va_ptr, vec3_t);
+    es_str_t expanded = es_format_expand(format, value.x, value.y, value.z);
+    es_str_free(&format);
+    return expanded;
 }
 #endif /*ES_IMPL*/
 #endif // ES_H

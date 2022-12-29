@@ -2,16 +2,18 @@
 #include "es_header.h"
 
 i32_t main(void) {
-    es_da(i32_t) da = NULL;
-    for (i32_t i = -4; i < 5; i++) {
-        es_da_push(da, i);
-    }
-    i32_t out = 0;
-    es_da_pop(da, &out);
-    
-    if (out != 4 || es_memcmp(da, &(i32_t[8]) {-4, -3, -2, -1, 0, 1, 2, 3}, 8 * sizeof(i32_t)) != 0) {
-        return 1;
-    }
+    es_formatter_init();
 
+    es_log("{f32 -1.3} {i32}\n", 3.1415926f);
+    es_log("{i32 +13}\n", -3213);
+    es_log("{u32 -13}\n", 3123);
+    es_log("{str 32}\n", "leif");
+
+    es_log("Math:\n");
+    es_log("    Vec2: {vec2 1.0}\n", vec2(1, 2));
+    es_log("    Vec3: {vec3 1.0}\n", vec3(1, 2, 3));
+    es_log("    Vec4: {vec4 1.0}\n", vec4(1, 2, 3, 4));
+
+    es_formatter_free();
     return 0;
 }
