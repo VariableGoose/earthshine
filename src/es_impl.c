@@ -2006,9 +2006,9 @@ es_str_t _es_format_expander_u64(es_da(es_str_t) args, va_list va_ptr) {
 
     es_str_t format = NULL;
     if (es_da_count(args) == 1) {
-        format = es_format_expand("%%%su", args[0]);
+        format = es_format_expand("%%%sllu", args[0]);
     } else {
-        format = es_str("%u");
+        format = es_str("%llu");
     }
     u64_t value = va_arg(va_ptr, u64_t);
     es_str_t expanded = es_format_expand(format, value);
@@ -2021,9 +2021,9 @@ es_str_t _es_format_expander_i64(es_da(es_str_t) args, va_list va_ptr) {
 
     es_str_t format = NULL;
     if (es_da_count(args) == 1) {
-        format = es_format_expand("%%%sd", args[0]);
+        format = es_format_expand("%%%slld", args[0]);
     } else {
-        format = es_str("%d");
+        format = es_str("%lld");
     }
     i64_t value = va_arg(va_ptr, i64_t);
     es_str_t expanded = es_format_expand(format, value);
@@ -2117,4 +2117,50 @@ es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr) {
     es_str_t expanded = es_format_expand(format, value.x, value.y, value.z);
     es_str_free(&format);
     return expanded;
+}
+
+/*=========================*/
+// Error handler
+/*=========================*/
+
+es_error_t _es_error_stack_g[32];
+u32_t _es_error_stack_i = 0;
+es_error_callback_t _es_error_callback_g = NULL;
+const es_error_t ES_NULL_ERROR = {NULL, ES_I32_MIN, NULL, ES_U32_MAX};
+es_error_severity_t _es_error_severity_filter = ES_ERROR_SEVERITY_FATAL | ES_ERROR_SEVERITY_ERROR | ES_ERROR_SEVERITY_WARNING;
+
+void _es_error_report(const char *file, i32_t line, const char *message, es_error_severity_t severity) {
+    if ((_es_error_severity_filter & severity) == 0) {
+        return;
+    }
+
+    es_error_t error = {
+        file, line,
+        message, severity,
+    };
+
+    _es_error_stack_g[_es_error_stack_i++] = error;
+
+    if (_es_error_callback_g != NULL) {
+        _es_error_callback_g(error);
+    }
+}
+
+es_error_t es_error_get(void) {
+    if (_es_error_stack_i == 0) {
+        return ES_NULL_ERROR;
+    }
+    return _es_error_stack_g[_es_error_stack_i-- - 1];
+}
+
+void es_error_set_callback(es_error_callback_t callback) {
+    _es_error_callback_g = callback;
+}
+
+void es_error_set_filter(es_error_severity_t filter) {
+    _es_error_severity_filter = filter;
+}
+
+b8_t es_error_is_null(es_error_t error) {
+    return (error.file == NULL && error.line == ES_I32_MIN && error.message == NULL && error.severity == ES_U32_MAX);
 }

@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.11
+    * Version: 1.12
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -300,6 +300,20 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 #define _es_macro_concat(A, B) A ## B
 #define es_macro_concat(A, B) _es_macro_concat(A, B)
 #define es_macro_var(NAME) es_macro_concat(_es_macro_variable, es_macro_concat(NAME, __LINE__))
+
+#define ES_I8_MIN  -128
+#define ES_I8_MAX   127
+#define ES_I16_MIN -32768
+#define ES_I16_MAX  32767
+#define ES_I32_MIN -2147483648
+#define ES_I32_MAX  2147483647
+#define ES_I64_MIN  9223372036854775807
+#define ES_I64_MAX -9223372036854775808
+
+#define ES_U8_MAX  255
+#define ES_U16_MAX 65535
+#define ES_U32_MAX 4294967295
+#define ES_U64_MAX 18446744073709551615
 
 // Hash string.
 ES_API usize_t es_hash_str(const char *str);
@@ -1035,6 +1049,48 @@ ES_API es_str_t _es_format_expander_str(es_da(es_str_t) args, va_list va_ptr);
 ES_API es_str_t _es_format_expander_vec2(es_da(es_str_t) args, va_list va_ptr);
 ES_API es_str_t _es_format_expander_vec3(es_da(es_str_t) args, va_list va_ptr);
 ES_API es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr);
+
+/*=========================*/
+// Error handler
+/*=========================*/
+
+typedef enum es_error_severity_t {
+    ES_ERROR_SEVERITY_FATAL   = 1 << 0,
+    ES_ERROR_SEVERITY_ERROR   = 1 << 1,
+    ES_ERROR_SEVERITY_WARNING = 1 << 2,
+    ES_ERROR_SEVERITY_INFO    = 1 << 3,
+    ES_ERROR_SEVERITY_DEBUG   = 1 << 4,
+} es_error_severity_t;
+
+typedef struct es_error_t {
+    const char *file;
+    i32_t line;
+    const char *message;
+    es_error_severity_t severity;
+} es_error_t;
+
+// Error callback type.
+typedef void (*es_error_callback_t)(es_error_t);
+
+ES_GLOBAL es_error_t _error_stack_g[32];
+ES_GLOBAL u32_t _es_error_stack_i;
+ES_GLOBAL es_error_callback_t _es_error_callback_g;
+ES_GLOBAL const es_error_t ES_NULL_ERROR;
+ES_GLOBAL es_error_severity_t _es_error_severity_filter;
+
+// Internal error reporting function.
+ES_API void _es_error_report(const char *file, i32_t line, const char *message, es_error_severity_t severity);
+// Retrieve an error from the stack. If none exists ES_NULL_ERROR will be returned.
+ES_API es_error_t es_error_get(void);
+// Specify an error callback.
+ES_API void es_error_set_callback(es_error_callback_t callback);
+// Specify which error severities are important.
+ES_API void es_error_set_filter(es_error_severity_t filter);
+// Check if an error is NULL.
+ES_API b8_t es_error_is_null(es_error_t error);
+
+// Report an error.
+#define es_error(MSG, SEVERITY) _es_error_report(__FILE__, __LINE__, MSG, SEVERITY)
 
 /*=========================*/
 // Implementation

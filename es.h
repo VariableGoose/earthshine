@@ -2,7 +2,7 @@
     * Copyright: Linus Erik Pontus Kåreblom
     * Earthshine: A general purpose single header library
     * File: es.h
-    * Version: 1.11
+    * Version: 1.12
     * Github: https://github.com/linusepk/earthshine
 
     All Rights Reserved
@@ -300,6 +300,20 @@ ES_API void _es_assert_impl(const char *file, u32_t line, const char *expr_str, 
 #define _es_macro_concat(A, B) A ## B
 #define es_macro_concat(A, B) _es_macro_concat(A, B)
 #define es_macro_var(NAME) es_macro_concat(_es_macro_variable, es_macro_concat(NAME, __LINE__))
+
+#define ES_I8_MIN  -128
+#define ES_I8_MAX   127
+#define ES_I16_MIN -32768
+#define ES_I16_MAX  32767
+#define ES_I32_MIN -2147483648
+#define ES_I32_MAX  2147483647
+#define ES_I64_MIN  9223372036854775807
+#define ES_I64_MAX -9223372036854775808
+
+#define ES_U8_MAX  255
+#define ES_U16_MAX 65535
+#define ES_U32_MAX 4294967295
+#define ES_U64_MAX 18446744073709551615
 
 // Hash string.
 ES_API usize_t es_hash_str(const char *str);
@@ -1035,6 +1049,48 @@ ES_API es_str_t _es_format_expander_str(es_da(es_str_t) args, va_list va_ptr);
 ES_API es_str_t _es_format_expander_vec2(es_da(es_str_t) args, va_list va_ptr);
 ES_API es_str_t _es_format_expander_vec3(es_da(es_str_t) args, va_list va_ptr);
 ES_API es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr);
+
+/*=========================*/
+// Error handler
+/*=========================*/
+
+typedef enum es_error_severity_t {
+    ES_ERROR_SEVERITY_FATAL   = 1 << 0,
+    ES_ERROR_SEVERITY_ERROR   = 1 << 1,
+    ES_ERROR_SEVERITY_WARNING = 1 << 2,
+    ES_ERROR_SEVERITY_INFO    = 1 << 3,
+    ES_ERROR_SEVERITY_DEBUG   = 1 << 4,
+} es_error_severity_t;
+
+typedef struct es_error_t {
+    const char *file;
+    i32_t line;
+    const char *message;
+    es_error_severity_t severity;
+} es_error_t;
+
+// Error callback type.
+typedef void (*es_error_callback_t)(es_error_t);
+
+ES_GLOBAL es_error_t _error_stack_g[32];
+ES_GLOBAL u32_t _es_error_stack_i;
+ES_GLOBAL es_error_callback_t _es_error_callback_g;
+ES_GLOBAL const es_error_t ES_NULL_ERROR;
+ES_GLOBAL es_error_severity_t _es_error_severity_filter;
+
+// Internal error reporting function.
+ES_API void _es_error_report(const char *file, i32_t line, const char *message, es_error_severity_t severity);
+// Retrieve an error from the stack. If none exists ES_NULL_ERROR will be returned.
+ES_API es_error_t es_error_get(void);
+// Specify an error callback.
+ES_API void es_error_set_callback(es_error_callback_t callback);
+// Specify which error severities are important.
+ES_API void es_error_set_filter(es_error_severity_t filter);
+// Check if an error is NULL.
+ES_API b8_t es_error_is_null(es_error_t error);
+
+// Report an error.
+#define es_error(MSG, SEVERITY) _es_error_report(__FILE__, __LINE__, MSG, SEVERITY)
 
 /*=========================*/
 // Implementation
@@ -3047,9 +3103,9 @@ es_str_t _es_format_expander_u64(es_da(es_str_t) args, va_list va_ptr) {
 
     es_str_t format = NULL;
     if (es_da_count(args) == 1) {
-        format = es_format_expand("%%%su", args[0]);
+        format = es_format_expand("%%%sllu", args[0]);
     } else {
-        format = es_str("%u");
+        format = es_str("%llu");
     }
     u64_t value = va_arg(va_ptr, u64_t);
     es_str_t expanded = es_format_expand(format, value);
@@ -3062,9 +3118,9 @@ es_str_t _es_format_expander_i64(es_da(es_str_t) args, va_list va_ptr) {
 
     es_str_t format = NULL;
     if (es_da_count(args) == 1) {
-        format = es_format_expand("%%%sd", args[0]);
+        format = es_format_expand("%%%slld", args[0]);
     } else {
-        format = es_str("%d");
+        format = es_str("%lld");
     }
     i64_t value = va_arg(va_ptr, i64_t);
     es_str_t expanded = es_format_expand(format, value);
@@ -3158,6 +3214,52 @@ es_str_t _es_format_expander_vec4(es_da(es_str_t) args, va_list va_ptr) {
     es_str_t expanded = es_format_expand(format, value.x, value.y, value.z);
     es_str_free(&format);
     return expanded;
+}
+
+/*=========================*/
+// Error handler
+/*=========================*/
+
+es_error_t _es_error_stack_g[32];
+u32_t _es_error_stack_i = 0;
+es_error_callback_t _es_error_callback_g = NULL;
+const es_error_t ES_NULL_ERROR = {NULL, ES_I32_MIN, NULL, ES_U32_MAX};
+es_error_severity_t _es_error_severity_filter = ES_ERROR_SEVERITY_FATAL | ES_ERROR_SEVERITY_ERROR | ES_ERROR_SEVERITY_WARNING;
+
+void _es_error_report(const char *file, i32_t line, const char *message, es_error_severity_t severity) {
+    if ((_es_error_severity_filter & severity) == 0) {
+        return;
+    }
+
+    es_error_t error = {
+        file, line,
+        message, severity,
+    };
+
+    _es_error_stack_g[_es_error_stack_i++] = error;
+
+    if (_es_error_callback_g != NULL) {
+        _es_error_callback_g(error);
+    }
+}
+
+es_error_t es_error_get(void) {
+    if (_es_error_stack_i == 0) {
+        return ES_NULL_ERROR;
+    }
+    return _es_error_stack_g[_es_error_stack_i-- - 1];
+}
+
+void es_error_set_callback(es_error_callback_t callback) {
+    _es_error_callback_g = callback;
+}
+
+void es_error_set_filter(es_error_severity_t filter) {
+    _es_error_severity_filter = filter;
+}
+
+b8_t es_error_is_null(es_error_t error) {
+    return (error.file == NULL && error.line == ES_I32_MIN && error.message == NULL && error.severity == ES_U32_MAX);
 }
 #endif /*ES_IMPL*/
 #endif // ES_H

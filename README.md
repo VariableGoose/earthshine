@@ -22,7 +22,7 @@ Copy [es.h](./es.h) into your project. Include it and define ES_IMPL in **ONE** 
 - [x] Threading
 - [x] Strings
 - [x] Library loading
-- [ ] Error handler
+- [x] Error handler
 - [x] Unit tests
 - [x] Profiler
 
