@@ -1162,6 +1162,11 @@ VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance inst
 
     return surface;
 }
+
+void es_window_get_extensions(es_da(const char *) *extensions) {
+    es_da_push(*extensions, (const char *) "VK_KHR_surface");
+    es_da_push(*extensions, (const char *) "VK_KHR_xlib_surface");
+}
 #endif // ES_VULKAN
 
 es_key_t _es_window_translate_keysym(KeySym keysym) {
@@ -1549,6 +1554,11 @@ VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance inst
     }
 
     return surface;
+}
+
+void es_window_get_extensions(es_da(const char *) *extensions) {
+    es_da_push(*extensions, (const char *) "VK_KHR_surface");
+    es_da_push(*extensions, (const char *) "VK_KHR_win32_surface");
 }
 #endif // ES_VULKAN
 

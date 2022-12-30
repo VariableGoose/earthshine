@@ -1,4 +1,4 @@
-#define ES_VULKAN
+/* #define ES_VULKAN */
 #include "es_header.h"
 
 void error_callback(es_error_t err) {
@@ -17,6 +17,10 @@ i32_t main(void) {
     es_error("Info",    ES_ERROR_SEVERITY_INFO);
     es_error("This will not log.", ES_ERROR_SEVERITY_DEBUG);
     
+    es_da(const char *) exts = NULL;
+    es_window_get_extensions(&exts);
+    es_log("{str}, {str}\n", exts[0], exts[1]);
+
     es_formatter_free();
     return 0;
 }

@@ -959,6 +959,7 @@ ES_API void es_window_set_scroll_callback(es_window_t *window, es_window_scroll_
 #ifdef ES_VULKAN
 // Create a vulkan surface for window.
 ES_API VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance instance);
+ES_API void es_window_get_extensions(es_da(const char *) extensions);
 #endif // ES_VULKAN
 #ifdef ES_OS_LINUX
 // Internal linus function for translating XLib keysyms to es_key_t.
@@ -2259,6 +2260,11 @@ VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance inst
 
     return surface;
 }
+
+void es_window_get_extensions(es_da(const char *) extensions) {
+    es_da_push(extensions, (const char *) "VK_KHR_surface");
+    es_da_push(extensions, (const char *) "VK_KHR_xlib_surface");
+}
 #endif // ES_VULKAN
 
 es_key_t _es_window_translate_keysym(KeySym keysym) {
@@ -2646,6 +2652,11 @@ VkSurfaceKHR es_window_vulkan_surface(const es_window_t *window, VkInstance inst
     }
 
     return surface;
+}
+
+void es_window_get_extensions(es_da(const char *) extensions) {
+    es_da_push(extensions, (const char *) "VK_KHR_surface");
+    es_da_push(extensions, (const char *) "VK_KHR_win32_surface");
 }
 #endif // ES_VULKAN
 

@@ -1,8 +1,8 @@
 CC := gcc
 CFLAGS := -std=c99 -g -ggdb -Wall -Wextra -pedantic
 IFLAGS := -Isrc -Iinclude
-LFLAGS :=
-DFLAGS :=
+LFLAGS := -lvulkan
+DFLAGS := -DES_VULKAN
 
 UNIT_TESTS := $(wildcard tests/*.c)
 
